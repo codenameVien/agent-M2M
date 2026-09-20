@@ -1,0 +1,80 @@
+/**
+ * POST /api/purchase — 요청 한 건을 받아 선택·결제·확인·결과·기록까지 돌린다.
+ *
+ * 입력은 여기서 모양만 검사한다(문자열인지, 정수인지, 네 우선순위 중 하나인지).
+ * 예산 부족 같은 판단은 select.ts 가 하고, 그 결과는 400 이 아니라 기록으로 남는다.
+ */
+
+import { NextResponse } from "next/server";
+
+import { runPurchase } from "@/lib/purchase";
+import { SelectionError } from "@/lib/select";
+import { PRIORITIES, type Priority, type PurchaseRequest } from "@/lib/types";
+
+// DB 를 읽고 쓰는 라우트는 정적으로 캐시되면 안 된다.
+export const dynamic = "force-dynamic";
+
+function bad(message: string): NextResponse {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
+
+/** 요청 본문을 PurchaseRequest 로 바꾼다. 틀린 부분이 있으면 한국어 메시지를 돌려준다. */
+function parseBody(body: unknown): PurchaseRequest | string {
+  if (typeof body !== "object" || body === null) return "요청 본문이 JSON 객체가 아닙니다";
+  const input = body as Record<string, unknown>;
+
+  const prompt = input.prompt;
+  if (typeof prompt !== "string" || prompt.trim() === "") return "prompt 는 비어 있지 않은 문자열이어야 합니다";
+
+  const budgetUnits = input.budgetUnits;
+  if (typeof budgetUnits !== "number" || !Number.isInteger(budgetUnits) || budgetUnits < 0) {
+    return "budgetUnits 는 0 이상의 정수여야 합니다";
+  }
+
+  const priority = input.priority;
+  if (typeof priority !== "string" || !PRIORITIES.includes(priority as Priority)) {
+    return `priority 는 ${PRIORITIES.join(", ")} 중 하나여야 합니다`;
+  }
+
+  const request: PurchaseRequest = { prompt, budgetUnits, priority: priority as Priority };
+
+  if (input.maxOutputTokens !== undefined) {
+    const value = input.maxOutputTokens;
+    if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+      return "maxOutputTokens 는 1 이상의 정수여야 합니다";
+    }
+    request.maxOutputTokens = value;
+  }
+
+  if (input.requiredCapabilities !== undefined) {
+    const value = input.requiredCapabilities;
+    if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+      return "requiredCapabilities 는 문자열 배열이어야 합니다";
+    }
+    request.requiredCapabilities = (value as string[]).map((item) => item.trim()).filter((item) => item !== "");
+  }
+
+  return request;
+}
+
+export async function POST(httpRequest: Request): Promise<NextResponse> {
+  let body: unknown;
+  try {
+    body = await httpRequest.json();
+  } catch {
+    return bad("요청 본문을 JSON 으로 읽을 수 없습니다");
+  }
+
+  const parsed = parseBody(body);
+  if (typeof parsed === "string") return bad(parsed);
+
+  try {
+    const record = await runPurchase(parsed);
+    return NextResponse.json(record);
+  } catch (error) {
+    // 선택 단계에서 막힌 경우(후보 없음 등)는 결제 전이므로 기록 없이 400 으로 알린다.
+    if (error instanceof SelectionError) return bad(error.message);
+    const message = error instanceof Error ? error.message : "알 수 없는 오류";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

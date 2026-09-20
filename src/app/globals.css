@@ -1,0 +1,229 @@
+/* 발표용 화면. 흰 배경, 진한 글자, 테두리 있는 표. 꾸밈보다 읽기 쉬움을 우선한다. */
+
+:root {
+  --text: #1a1a1a;
+  --muted: #5c5c5c;
+  --border: #c8c8c8;
+  --head: #f2f2f2;
+  --ok: #1b6e2e;
+  --fail: #a8231d;
+  --warn-bg: #fff3cd;
+  --warn-border: #d9a800;
+  --win-bg: #e8f4ea;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: #ffffff;
+  color: var(--text);
+  font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+header.site {
+  border-bottom: 1px solid var(--border);
+}
+
+header.site .inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+header.site .brand {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+header.site nav a {
+  margin-right: 14px;
+  color: var(--text);
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+h2 {
+  font-size: 18px;
+  margin: 28px 0 8px;
+}
+
+p.muted,
+span.muted {
+  color: var(--muted);
+}
+
+a {
+  color: #0b4f9c;
+}
+
+/* 결제 모드 안내. mock 이면 노란 띠, live 면 빨간 띠로 눈에 띄게. */
+.mode {
+  border: 2px solid var(--warn-border);
+  background: var(--warn-bg);
+  padding: 10px 14px;
+  margin: 12px 0 20px;
+  font-weight: 600;
+}
+
+.mode.live {
+  border-color: var(--fail);
+  background: #fde8e7;
+}
+
+/* 폼 */
+form.request {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+form.request label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+form.request small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+form.request textarea,
+form.request input,
+form.request select {
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--text);
+}
+
+form.request textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+form.request .caps {
+  display: flex;
+  gap: 16px;
+  font-weight: 400;
+}
+
+form.request .caps label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 400;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 9px 18px;
+  border: 1px solid var(--text);
+  border-radius: 4px;
+  background: var(--text);
+  color: #fff;
+  cursor: pointer;
+  justify-self: start;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  color: var(--fail);
+  font-weight: 600;
+}
+
+/* 표 */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0 16px;
+  font-size: 14px;
+}
+
+th,
+td {
+  border: 1px solid var(--border);
+  padding: 6px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--head);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+tr.winner td {
+  background: var(--win-bg);
+  font-weight: 600;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+/* 키-값 표(요약) */
+table.kv th {
+  width: 200px;
+}
+
+.status-SETTLED {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.status-FAILED {
+  color: var(--fail);
+  font-weight: 700;
+}
+
+code,
+pre {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+pre.result {
+  border: 1px solid var(--border);
+  background: #fafafa;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.hash {
+  word-break: break-all;
+}

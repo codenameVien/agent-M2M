@@ -1,0 +1,29 @@
+{
+  "snapshotId": "benchmark-fixture-2026-09",
+  "capturedAt": "2026-09-01T00:00:00Z",
+  "source": "fixture",
+  "note": "공개 벤치마크(Artificial Analysis 형태)를 본뜬 고정 예시 데이터입니다. 실제 측정값이 아닙니다.",
+  "models": [
+    {
+      "key": "openai:gpt-4.1-mini-2025-04-14",
+      "inputPricePerMillion": "0.4",
+      "outputPricePerMillion": "1.6",
+      "medianEndToEndSeconds": "8.4",
+      "intelligenceIndex": "41.5"
+    },
+    {
+      "key": "anthropic:claude-haiku-4-5-20251001",
+      "inputPricePerMillion": "1",
+      "outputPricePerMillion": "5",
+      "medianEndToEndSeconds": "12.5",
+      "intelligenceIndex": "55.2"
+    },
+    {
+      "key": "google:gemini-2.5-flash",
+      "inputPricePerMillion": "0.3",
+      "outputPricePerMillion": "2.5",
+      "medianEndToEndSeconds": "4.75",
+      "intelligenceIndex": "48"
+    }
+  ]
+}

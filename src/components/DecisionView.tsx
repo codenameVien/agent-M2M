@@ -1,0 +1,201 @@
+/**
+ * 결정 결과를 보여주는 표들. 새 요청 화면과 기록 상세 화면이 같은 모양으로 보여주기 위해 공유한다.
+ * 훅을 쓰지 않으므로 서버·클라이언트 어느 쪽에서도 그릴 수 있다.
+ */
+
+import type { PurchaseRecord } from "@/lib/types";
+
+const PRIORITY_LABEL: Record<string, string> = {
+  default: "기본",
+  price: "가격",
+  speed: "속도",
+  intelligence: "지능",
+};
+
+function fmt(value: number): string {
+  return value.toLocaleString("ko-KR");
+}
+
+function score(value: number): string {
+  return value.toFixed(2);
+}
+
+/** 상단 요약 + 결제 + 결과. */
+export function PurchaseSummary({ record }: { record: PurchaseRecord }) {
+  const { decision, payment } = record;
+  return (
+    <>
+      <table className="kv">
+        <tbody>
+          <tr>
+            <th>상태</th>
+            <td>
+              <span className={`status-${record.status}`}>
+                {record.status === "SETTLED" ? "완료 (SETTLED)" : "실패 (FAILED)"}
+              </span>
+              {record.failureReason !== null && <> — {record.failureReason}</>}
+            </td>
+          </tr>
+          <tr>
+            <th>선택된 모델</th>
+            <td>
+              {decision.winner.displayName} <code>{decision.winner.key}</code>
+            </td>
+          </tr>
+          <tr>
+            <th>결제 금액</th>
+            <td>
+              {fmt(decision.winner.amountUnits)} units
+              <span className="muted"> (예산 {fmt(decision.budgetUnits)} units)</span>
+            </td>
+          </tr>
+          <tr>
+            <th>우선순위 / 가중치</th>
+            <td>
+              {PRIORITY_LABEL[decision.priority] ?? decision.priority} — 가격 {decision.weights.price} · 시간{" "}
+              {decision.weights.time} · 지능 {decision.weights.intelligence}
+            </td>
+          </tr>
+          <tr>
+            <th>토큰 추정</th>
+            <td>
+              입력 {fmt(decision.estimatedInputTokens)} · 최대 출력 {fmt(decision.maxOutputTokens)}
+            </td>
+          </tr>
+          <tr>
+            <th>벤치마크 스냅샷</th>
+            <td>
+              <code>{decision.snapshotId}</code> / 카탈로그 <code>{decision.catalogVersion}</code>
+              <br />
+              <code className="hash">{decision.snapshotHash}</code>
+            </td>
+          </tr>
+          <tr>
+            <th>결제 모드</th>
+            <td>{payment === null ? "결제 없음" : payment.mode === "live" ? "live (실제 전송)" : "mock (전송 없음)"}</td>
+          </tr>
+          <tr>
+            <th>거래번호 (tx)</th>
+            <td>
+              <code className="hash">{payment?.txHash ?? "-"}</code>
+            </td>
+          </tr>
+          <tr>
+            <th>보낸 주소 → 받은 주소</th>
+            <td>
+              {payment === null ? (
+                "-"
+              ) : (
+                <>
+                  <code className="hash">{payment.from}</code> → <code className="hash">{payment.to}</code>
+                </>
+              )}
+            </td>
+          </tr>
+          <tr>
+            <th>토큰 / 체인</th>
+            <td>
+              {payment === null ? (
+                "-"
+              ) : (
+                <>
+                  <code className="hash">{payment.tokenAddress}</code> · chainId {payment.chainId}
+                  {payment.blockNumber !== undefined && <> · block {payment.blockNumber}</>}
+                </>
+              )}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>결과</h2>
+      {record.resultText === null ? (
+        <p className="muted">결제가 확인되지 않아 결과가 없습니다.</p>
+      ) : (
+        <pre className="result">{record.resultText}</pre>
+      )}
+    </>
+  );
+}
+
+/** 후보 점수표 + 탈락 후보표. */
+export function CandidateTables({ record }: { record: PurchaseRecord }) {
+  const { decision } = record;
+  return (
+    <>
+      <h2>후보 점수</h2>
+      <p className="muted">
+        기준값 — 최저 금액 {fmt(decision.references.minAmountUnits)} units · 최단 완료{" "}
+        {fmt(decision.references.minCompletionMs)} ms · 최고 지능 {decision.references.maxIntelligenceIndex}.
+        각 점수는 기준값 대비 100점 만점, 총점은 가중치(가격 {decision.weights.price} / 시간{" "}
+        {decision.weights.time} / 지능 {decision.weights.intelligence})의 합.
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th className="num">순위</th>
+              <th>모델</th>
+              <th className="num">금액 (units)</th>
+              <th className="num">완료 (ms)</th>
+              <th className="num">지능 지수</th>
+              <th className="num">가격 점수</th>
+              <th className="num">시간 점수</th>
+              <th className="num">지능 점수</th>
+              <th className="num">총점</th>
+            </tr>
+          </thead>
+          <tbody>
+            {decision.candidates.map((candidate) => (
+              <tr key={candidate.key} className={candidate.rank === 1 ? "winner" : undefined}>
+                <td className="num">{candidate.rank}</td>
+                <td>
+                  {candidate.displayName}
+                  <br />
+                  <code>{candidate.key}</code>
+                </td>
+                <td className="num">{fmt(candidate.amountUnits)}</td>
+                <td className="num">{fmt(candidate.completionMs)}</td>
+                <td className="num">{candidate.intelligenceIndex}</td>
+                <td className="num">{score(candidate.priceScore)}</td>
+                <td className="num">{score(candidate.timeScore)}</td>
+                <td className="num">{score(candidate.intelligenceScore)}</td>
+                <td className="num">{score(candidate.totalScore)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2>탈락 후보</h2>
+      {decision.rejected.length === 0 ? (
+        <p className="muted">필터에서 떨어진 후보가 없습니다.</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>모델</th>
+                <th className="num">금액 (units)</th>
+                <th>탈락 사유</th>
+              </tr>
+            </thead>
+            <tbody>
+              {decision.rejected.map((item) => (
+                <tr key={item.key}>
+                  <td>
+                    {item.displayName}
+                    <br />
+                    <code>{item.key}</code>
+                  </td>
+                  <td className="num">{fmt(item.amountUnits)}</td>
+                  <td>{item.reasons.join(" / ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}

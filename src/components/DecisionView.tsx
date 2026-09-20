@@ -4,14 +4,8 @@
  */
 
 import { aegisText, toAegis } from "@/lib/format";
+import { PRIORITY_LABEL } from "@/lib/priority-label";
 import type { PurchaseRecord } from "@/lib/types";
-
-const PRIORITY_LABEL: Record<string, string> = {
-  default: "기본",
-  price: "가격",
-  speed: "속도",
-  intelligence: "지능",
-};
 
 function fmt(value: number): string {
   return value.toLocaleString("ko-KR");
@@ -53,8 +47,8 @@ export function PurchaseSummary({ record }: { record: PurchaseRecord }) {
           <tr>
             <th>우선순위 / 가중치</th>
             <td>
-              {PRIORITY_LABEL[decision.priority] ?? decision.priority} — 가격 {decision.weights.price} · 시간{" "}
-              {decision.weights.time} · 지능 {decision.weights.intelligence}
+              {PRIORITY_LABEL[decision.priority]} — 가격 {decision.weights.price} · 속도{" "}
+              {decision.weights.time} · 성능 {decision.weights.intelligence}
             </td>
           </tr>
           <tr>

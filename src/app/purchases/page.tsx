@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { toAegis } from "@/lib/format";
+import { PRIORITY_LABEL } from "@/lib/priority-label";
 import { listPurchases } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export default function PurchasesPage() {
                   <td>{when(record.createdAt)}</td>
                   <td>{record.decision.winner.displayName}</td>
                   <td className="num">{toAegis(record.decision.winner.amountUnits)}</td>
-                  <td>{record.decision.priority}</td>
+                  <td>{PRIORITY_LABEL[record.decision.priority]}</td>
                   <td>
                     <span className={`status-${record.status}`}>{record.status}</span>
                   </td>

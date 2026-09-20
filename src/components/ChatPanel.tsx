@@ -12,14 +12,13 @@ import { useState, type FormEvent } from "react";
 
 import { CandidateTables, PurchaseSummary } from "@/components/DecisionView";
 import { toAegis, toUnits } from "@/lib/format";
+import { PRIORITY_HINT, PRIORITY_LABEL } from "@/lib/priority-label";
 import { PRIORITIES, type PurchaseRecord } from "@/lib/types";
 
-const PRIORITY_OPTIONS: { value: (typeof PRIORITIES)[number]; label: string }[] = [
-  { value: "default", label: "기본" },
-  { value: "price", label: "가격 우선" },
-  { value: "speed", label: "속도 우선" },
-  { value: "intelligence", label: "지능 우선" },
-];
+const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({
+  value,
+  label: `${PRIORITY_LABEL[value]} — ${PRIORITY_HINT[value]}`,
+}));
 
 interface Turn {
   id: number;

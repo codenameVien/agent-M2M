@@ -1,0 +1,188 @@
+"use client";
+
+/**
+ * 채팅 화면. 보낸 문장 하나가 곧 구매 한 건이다.
+ *
+ * 보내면 서버가 모델을 고르고 결제까지 끝낸 뒤 결과를 돌려준다. 그래서 버튼 이름이
+ * "전송 후 결제"다. 고른 근거(후보 점수·탈락 사유)는 답변 아래 접어두고, 눌러야 펼친다.
+ */
+
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
+
+import { CandidateTables, PurchaseSummary } from "@/components/DecisionView";
+import { PRIORITIES, type PurchaseRecord } from "@/lib/types";
+
+const PRIORITY_OPTIONS: { value: (typeof PRIORITIES)[number]; label: string }[] = [
+  { value: "default", label: "기본" },
+  { value: "price", label: "가격 우선" },
+  { value: "speed", label: "속도 우선" },
+  { value: "intelligence", label: "지능 우선" },
+];
+
+/** 토큰 최소 단위 → 사람이 읽는 AEGIS 표기. 1 AEGIS = 1,000,000 units. */
+export function toAegis(units: number): string {
+  const text = (units / 1_000_000).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+  return text === "" ? "0" : text;
+}
+
+interface Turn {
+  id: number;
+  prompt: string;
+  record: PurchaseRecord | null;
+  error: string | null;
+}
+
+export function ChatPanel({ mode }: { mode: "mock" | "live" }) {
+  const [prompt, setPrompt] = useState("");
+  const [budget, setBudget] = useState("0.05");
+  const [priority, setPriority] = useState<string>("default");
+  const [busy, setBusy] = useState(false);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [open, setOpen] = useState<number | null>(null);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    const text = prompt.trim();
+    if (text === "" || busy) return;
+    const budgetUnits = Math.round(Number(budget) * 1_000_000);
+    if (!Number.isFinite(budgetUnits) || budgetUnits < 0) return;
+
+    const id = Date.now();
+    setTurns((prev) => [...prev, { id, prompt: text, record: null, error: null }]);
+    setPrompt("");
+    setBusy(true);
+    try {
+      const response = await fetch("/api/purchase", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: text, budgetUnits, priority }),
+      });
+      const body = (await response.json()) as PurchaseRecord | { error: string };
+      setTurns((prev) =>
+        prev.map((turn) =>
+          turn.id !== id
+            ? turn
+            : !response.ok || "error" in body
+              ? { ...turn, error: "error" in body ? body.error : `요청 실패 (${response.status})` }
+              : { ...turn, record: body },
+        ),
+      );
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "요청을 보내지 못했습니다";
+      setTurns((prev) => prev.map((turn) => (turn.id === id ? { ...turn, error: message } : turn)));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="chat">
+      {turns.length === 0 ? (
+        <div className="chat-empty">
+          <h1>무엇을 물어볼까요?</h1>
+          <p className="muted">
+            보내면 벤치마크 표로 모델을 고르고, 그 모델에 결제한 뒤 결과를 가져옵니다.
+          </p>
+          <div className={`mode${mode === "live" ? " live" : ""}`}>
+            결제 모드: {mode === "live" ? "live — 실제 AEGIS 토큰이 전송됩니다" : "mock — 실제 전송 없음"}
+          </div>
+        </div>
+      ) : (
+        <div className="chat-log">
+          {turns.map((turn) => (
+            <div key={turn.id} className="turn">
+              <div className="bubble user">{turn.prompt}</div>
+
+              {turn.record === null && turn.error === null && (
+                <div className="bubble agent muted">모델을 고르고 결제하는 중…</div>
+              )}
+
+              {turn.error !== null && <div className="bubble agent error">{turn.error}</div>}
+
+              {turn.record !== null && turn.record.status === "FAILED" && (
+                <div className="bubble agent error">
+                  결제하지 못했습니다: {turn.record.failureReason}
+                </div>
+              )}
+
+              {turn.record !== null && turn.record.status === "SETTLED" && (
+                <div className="bubble agent">
+                  <div className="picked">
+                    <b>{turn.record.decision.winner.displayName}</b> 선택 ·{" "}
+                    {toAegis(turn.record.decision.winner.amountUnits)} AEGIS 결제
+                    {turn.record.payment?.mode === "mock" && " (mock)"}
+                  </div>
+                  <pre className="result">{turn.record.resultText}</pre>
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => setOpen(open === turn.id ? null : turn.id)}
+                  >
+                    {open === turn.id ? "고른 근거 접기" : "고른 근거 보기"}
+                  </button>
+                  {open === turn.id && (
+                    <div className="evidence">
+                      <PurchaseSummary record={turn.record} />
+                      <CandidateTables record={turn.record} />
+                      <p className="muted">
+                        <Link href={`/purchases/${turn.record.id}`}>기록 상세 보기</Link>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form className="composer" onSubmit={onSubmit}>
+        <div className="composer-row">
+          <textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            onKeyDown={(event) => {
+              // 엔터로 보내고, 줄바꿈은 Shift+엔터. 폼에 제출을 맡겨야 입력값이 최신 상태로 읽힌다.
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+            placeholder="무엇을 시킬지 적어주세요"
+            rows={2}
+          />
+          <button type="submit" disabled={busy || prompt.trim() === ""}>
+            {busy ? "처리 중…" : "전송 후 결제"}
+          </button>
+        </div>
+        <div className="composer-options">
+          <label>
+            예산
+            <input
+              type="number"
+              min={0}
+              step={0.000001}
+              value={budget}
+              onChange={(event) => setBudget(event.target.value)}
+            />
+            <span className="muted">AEGIS</span>
+          </label>
+          <label>
+            우선순위
+            <select value={priority} onChange={(event) => setPriority(event.target.value)}>
+              {PRIORITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="muted">
+            예산을 넘는 후보는 점수 계산 전에 탈락합니다 · 1 AEGIS = 1,000,000 units
+          </span>
+        </div>
+      </form>
+    </div>
+  );
+}

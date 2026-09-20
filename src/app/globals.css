@@ -227,3 +227,142 @@ pre.result {
 .hash {
   word-break: break-all;
 }
+
+/* --- 채팅 화면 --- */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: calc(100vh - 160px);
+}
+
+.chat-empty {
+  padding: 48px 0 8px;
+}
+
+.chat-empty h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bubble {
+  border: 1px solid #111;
+  padding: 12px 14px;
+  max-width: 760px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: #111;
+  color: #fff;
+}
+
+.bubble.agent {
+  align-self: flex-start;
+  background: #fff;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.bubble.agent .picked {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.bubble.agent .result {
+  margin: 0 0 10px;
+  font-family: inherit;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.bubble.error {
+  border-color: #b00;
+  color: #b00;
+}
+
+.evidence {
+  margin-top: 14px;
+  border-top: 1px solid #ddd;
+  padding-top: 14px;
+}
+
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #111;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid #ddd;
+  padding-top: 14px;
+}
+
+.composer-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.composer-row textarea {
+  flex: 1;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid #111;
+  font: inherit;
+}
+
+.composer-row button {
+  white-space: nowrap;
+  padding: 0 18px;
+}
+
+.composer-options {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.composer-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.composer-options input,
+.composer-options select {
+  font: inherit;
+  padding: 5px 8px;
+  border: 1px solid #111;
+}
+
+.composer-options input {
+  width: 120px;
+}

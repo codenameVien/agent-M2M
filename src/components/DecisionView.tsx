@@ -3,6 +3,7 @@
  * 훅을 쓰지 않으므로 서버·클라이언트 어느 쪽에서도 그릴 수 있다.
  */
 
+import { aegisText, toAegis } from "@/lib/format";
 import type { PurchaseRecord } from "@/lib/types";
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -45,8 +46,8 @@ export function PurchaseSummary({ record }: { record: PurchaseRecord }) {
           <tr>
             <th>결제 금액</th>
             <td>
-              {fmt(decision.winner.amountUnits)} units
-              <span className="muted"> (예산 {fmt(decision.budgetUnits)} units)</span>
+              {aegisText(decision.winner.amountUnits)}
+              <span className="muted"> (예산 {aegisText(decision.budgetUnits)})</span>
             </td>
           </tr>
           <tr>
@@ -125,7 +126,7 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
     <>
       <h2>후보 점수</h2>
       <p className="muted">
-        기준값 — 최저 금액 {fmt(decision.references.minAmountUnits)} units · 최단 완료{" "}
+        기준값 — 최저 금액 {aegisText(decision.references.minAmountUnits)} · 최단 완료{" "}
         {fmt(decision.references.minCompletionMs)} ms · 최고 지능 {decision.references.maxIntelligenceIndex}.
         각 점수는 기준값 대비 100점 만점, 총점은 가중치(가격 {decision.weights.price} / 시간{" "}
         {decision.weights.time} / 지능 {decision.weights.intelligence})의 합.
@@ -136,7 +137,7 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
             <tr>
               <th className="num">순위</th>
               <th>모델</th>
-              <th className="num">금액 (units)</th>
+              <th className="num">금액 (AEGIS)</th>
               <th className="num">완료 (ms)</th>
               <th className="num">지능 지수</th>
               <th className="num">가격 점수</th>
@@ -154,7 +155,7 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
                   <br />
                   <code>{candidate.key}</code>
                 </td>
-                <td className="num">{fmt(candidate.amountUnits)}</td>
+                <td className="num">{toAegis(candidate.amountUnits)}</td>
                 <td className="num">{fmt(candidate.completionMs)}</td>
                 <td className="num">{candidate.intelligenceIndex}</td>
                 <td className="num">{score(candidate.priceScore)}</td>
@@ -176,7 +177,7 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
             <thead>
               <tr>
                 <th>모델</th>
-                <th className="num">금액 (units)</th>
+                <th className="num">금액 (AEGIS)</th>
                 <th>탈락 사유</th>
               </tr>
             </thead>
@@ -188,7 +189,7 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
                     <br />
                     <code>{item.key}</code>
                   </td>
-                  <td className="num">{fmt(item.amountUnits)}</td>
+                  <td className="num">{toAegis(item.amountUnits)}</td>
                   <td>{item.reasons.join(" / ")}</td>
                 </tr>
               ))}

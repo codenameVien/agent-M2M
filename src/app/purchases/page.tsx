@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { toAegis } from "@/lib/format";
 import { listPurchases } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default function PurchasesPage() {
               <tr>
                 <th>시각</th>
                 <th>선택된 모델</th>
-                <th className="num">금액 (units)</th>
+                <th className="num">금액 (AEGIS)</th>
                 <th>우선순위</th>
                 <th>상태</th>
                 <th>모드</th>
@@ -36,7 +37,7 @@ export default function PurchasesPage() {
                 <tr key={record.id}>
                   <td>{when(record.createdAt)}</td>
                   <td>{record.decision.winner.displayName}</td>
-                  <td className="num">{record.decision.winner.amountUnits.toLocaleString("ko-KR")}</td>
+                  <td className="num">{toAegis(record.decision.winner.amountUnits)}</td>
                   <td>{record.decision.priority}</td>
                   <td>
                     <span className={`status-${record.status}`}>{record.status}</span>

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { CandidateTables, PurchaseSummary } from "@/components/DecisionView";
+import { toAegis, toUnits } from "@/lib/format";
 import { PRIORITIES, type PurchaseRecord } from "@/lib/types";
 
 const PRIORITY_OPTIONS: { value: (typeof PRIORITIES)[number]; label: string }[] = [
@@ -19,12 +20,6 @@ const PRIORITY_OPTIONS: { value: (typeof PRIORITIES)[number]; label: string }[] 
   { value: "speed", label: "속도 우선" },
   { value: "intelligence", label: "지능 우선" },
 ];
-
-/** 토큰 최소 단위 → 사람이 읽는 AEGIS 표기. 1 AEGIS = 1,000,000 units. */
-export function toAegis(units: number): string {
-  const text = (units / 1_000_000).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
-  return text === "" ? "0" : text;
-}
 
 interface Turn {
   id: number;
@@ -45,7 +40,7 @@ export function ChatPanel({ mode }: { mode: "mock" | "live" }) {
     event.preventDefault();
     const text = prompt.trim();
     if (text === "" || busy) return;
-    const budgetUnits = Math.round(Number(budget) * 1_000_000);
+    const budgetUnits = toUnits(Number(budget));
     if (!Number.isFinite(budgetUnits) || budgetUnits < 0) return;
 
     const id = Date.now();

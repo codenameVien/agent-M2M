@@ -20,14 +20,14 @@ describe("decide", () => {
     expect(decision.estimatedInputTokens).toBe(400);
     expect(decision.candidates).toHaveLength(3);
     expect(decision.rejected).toHaveLength(0);
-    expect(decision.winner.key).toBe("google:gemini-2.5-flash");
+    expect(decision.winner.key).toBe("google:test-flash");
     expect(decision.winner.amountUnits).toBe(20120);
     expect(decision.weights).toEqual({ price: 40, time: 30, intelligence: 30 });
   });
 
   it("가격 우선이면 GPT-4.1 mini 를 고른다", () => {
     const decision = decide({ prompt: PROMPT_400, budgetUnits: 50_000, priority: "price" });
-    expect(decision.winner.key).toBe("openai:gpt-4.1-mini-2025-04-14");
+    expect(decision.winner.key).toBe("openai:test-mini");
     expect(decision.winner.amountUnits).toBe(12960);
     expect(decision.weights).toEqual({ price: 60, time: 20, intelligence: 20 });
   });
@@ -39,8 +39,8 @@ describe("decide", () => {
       priority: "default",
       requiredCapabilities: ["reasoning"],
     });
-    expect(decision.candidates.map((item) => item.key)).not.toContain("google:gemini-2.5-flash");
-    const google = decision.rejected.find((item) => item.key === "google:gemini-2.5-flash");
+    expect(decision.candidates.map((item) => item.key)).not.toContain("google:test-flash");
+    const google = decision.rejected.find((item) => item.key === "google:test-flash");
     expect(google).toBeDefined();
     expect(google!.reasons).toEqual(["필요 기능 없음: reasoning"]);
   });

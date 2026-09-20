@@ -1,0 +1,41 @@
+{
+  "catalogVersion": "test-catalog-v1",
+  "entries": [
+    {
+      "key": "openai:test-mini",
+      "providerId": "openai",
+      "providerModelId": "test-mini",
+      "displayName": "테스트 OpenAI",
+      "aaSlug": "test-mini",
+      "recipient": "0xF00E8e0ecEF3B405250242F932849edB409497a0",
+      "capabilities": [
+        "korean",
+        "reasoning"
+      ]
+    },
+    {
+      "key": "anthropic:test-haiku",
+      "providerId": "anthropic",
+      "providerModelId": "test-haiku",
+      "displayName": "테스트 Anthropic",
+      "aaSlug": "test-haiku",
+      "recipient": "0xC77492d3AD5c97B09C6529284e71c417Be8926d8",
+      "capabilities": [
+        "korean",
+        "reasoning",
+        "vision"
+      ]
+    },
+    {
+      "key": "google:test-flash",
+      "providerId": "google",
+      "providerModelId": "test-flash",
+      "displayName": "테스트 Google",
+      "aaSlug": "test-flash",
+      "recipient": "0x5363903850f7AD4bF5FdbceFe9769A9e5b7080E4",
+      "capabilities": [
+        "korean"
+      ]
+    }
+  ]
+}

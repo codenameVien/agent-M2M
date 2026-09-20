@@ -29,7 +29,7 @@ interface Turn {
 
 export function ChatPanel({ mode }: { mode: "mock" | "live" }) {
   const [prompt, setPrompt] = useState("");
-  const [budget, setBudget] = useState("0.05");
+  const [budget, setBudget] = useState("0.3");
   const [priority, setPriority] = useState<string>("default");
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([]);

@@ -43,3 +43,18 @@ npm run build
 ## 기술 스택
 
 Next.js 15 (App Router) · React 19 · TypeScript · viem · better-sqlite3 · vitest
+
+## 벤치마크 값 갱신
+
+`data/benchmark.json` 은 Artificial Analysis 공개 API에서 떠온 실제 값입니다. 다시 뜨려면:
+
+```bash
+node scripts/capture-benchmark.mjs
+```
+
+`.env.local` 의 `AA_API_KEY` 를 읽고, `data/catalog.json` 의 `aaSlug` 로 모델을 찾아 저장합니다.
+슬러그를 모를 때는 `node scripts/capture-benchmark.mjs --list gemini` 처럼 검색하면 됩니다.
+
+떠온 시각(`capturedAt`)과 출처가 파일에 함께 저장되고, 결정 기록에는 그 파일의 해시가 남습니다.
+나중에 같은 숫자로 재계산할 수 있게 하기 위해서입니다. 테스트는 `tests/fixtures/` 의 고정 숫자만
+보므로 이 파일을 갱신해도 테스트는 흔들리지 않습니다.

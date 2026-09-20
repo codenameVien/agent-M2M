@@ -6,7 +6,7 @@
 import type { Priority } from "@/lib/types";
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
-  default: "고루 보기",
+  default: "균형 있게",
   price: "싸게",
   speed: "빠르게",
   intelligence: "똑똑하게",

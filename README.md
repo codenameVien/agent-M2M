@@ -35,7 +35,7 @@ npm run build
 | `AEGIS_CHAIN_ID` | `84532` | Base Sepolia |
 | `AEGIS_RPC_URL` | `https://sepolia.base.org` | RPC |
 | `AEGIS_BUYER_PRIVATE_KEY` | (비움) | 구매자 지갑 개인키. live에서만 필요 |
-| `AEGIS_MAX_TRANSACTION_UNITS` | `100000` | 1건 상한(units) |
+| `AEGIS_MAX_TRANSACTION_UNITS` | `500000` | 1건 상한(units, 0.5 AEGIS) |
 | `AGENT_M2M_DB` | `data/agent-m2m.db` | SQLite 파일 경로 |
 
 > **경고** — 실제 토큰 전송은 기본적으로 일어나지 않습니다(mock). `AEGIS_PAYMENT_MODE=live` **와** `AEGIS_REAL_PAYMENT_APPROVED=yes` 두 변수가 모두 켜져 있고 개인키가 있을 때만 Base Sepolia에서 실제 `transfer`가 실행됩니다. 개인키는 절대 커밋하지 마세요.
@@ -46,15 +46,31 @@ Next.js 15 (App Router) · React 19 · TypeScript · viem · better-sqlite3 · v
 
 ## 벤치마크 값 갱신
 
-`data/benchmark.json` 은 Artificial Analysis 공개 API에서 떠온 실제 값입니다. 다시 뜨려면:
+`data/benchmark.json` 은 두 출처에서 떠온 실제 값입니다.
+
+| 출처 | 쓰는 값 |
+|---|---|
+| Artificial Analysis 공개 API | 가격 · 응답시간 · 지능 지수 |
+| LMArena 공식 데이터셋 (Hugging Face) | 사람 선호 Elo |
+
+가격과 응답시간은 AA에만 있어서 AA 값을 씁니다. **성능 점수만 두 출처를 합칩니다.**
+
+- AA 점수 = 내 지능 지수 ÷ 후보 중 최고 × 100
+- Arena 점수 = 1등 후보와 붙었을 때 이길 확률 × 200 (1등 = 100점)
+- 성능 점수 = 두 점수의 평균
+
+두 사이트는 같은 모델을 노력 수준(생각을 얼마나 오래 하는지)별로 따로 잽니다. 서로 다른 단계를
+섞지 않도록 `data/catalog.json` 에 모델마다 `aaSlug` 와 `arenaModel` 을 사람이 직접 적고,
+어느 단계끼리 짝지었는지 `effortPairing` 에 남깁니다. 이름으로 추측해서 찾지 않고, 한 출처라도
+값이 없으면 기본값으로 메우지 않고 멈춥니다.
+
+다시 뜨려면:
 
 ```bash
 node scripts/capture-benchmark.mjs
+node scripts/capture-benchmark.mjs --list gemini   # AA 슬러그 검색
+node scripts/capture-benchmark.mjs --arena opus    # Arena 모델 이름 검색
 ```
 
-`.env.local` 의 `AA_API_KEY` 를 읽고, `data/catalog.json` 의 `aaSlug` 로 모델을 찾아 저장합니다.
-슬러그를 모를 때는 `node scripts/capture-benchmark.mjs --list gemini` 처럼 검색하면 됩니다.
-
-떠온 시각(`capturedAt`)과 출처가 파일에 함께 저장되고, 결정 기록에는 그 파일의 해시가 남습니다.
-나중에 같은 숫자로 재계산할 수 있게 하기 위해서입니다. 테스트는 `tests/fixtures/` 의 고정 숫자만
-보므로 이 파일을 갱신해도 테스트는 흔들리지 않습니다.
+AA 키는 `.env.local` 의 `AA_API_KEY` 에서만 읽습니다. 떠온 시각과 Arena 발행일이 파일에 함께 저장되고,
+결정 기록에는 그 파일의 해시가 남습니다. 테스트는 `tests/fixtures/` 의 고정 숫자만 봅니다.

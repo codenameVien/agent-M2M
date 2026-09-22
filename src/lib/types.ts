@@ -30,6 +30,10 @@ export interface CatalogEntry {
   key: string;
   /** 벤치마크를 다시 뜰 때 쓰는 Artificial Analysis 슬러그. */
   aaSlug?: string;
+  /** LMArena 리더보드의 정확한 모델 이름. 추측으로 찾지 않고 이 이름으로만 찾는다. */
+  arenaModel?: string;
+  /** 두 출처가 각각 어느 노력 수준을 쟀는지 사람이 적어 둔 설명. */
+  effortPairing?: string;
   providerId: string;
   providerModelId: string;
   displayName: string;
@@ -52,6 +56,10 @@ export interface BenchmarkModel {
   outputPricePerMillion: string;
   medianEndToEndSeconds: string;
   intelligenceIndex: string;
+  /** LMArena 사람 선호 Elo. 성능 점수의 두 번째 출처다. */
+  arenaModel: string;
+  arenaRating: string;
+  arenaVotes?: number;
 }
 
 export interface BenchmarkSnapshot {
@@ -59,6 +67,7 @@ export interface BenchmarkSnapshot {
   capturedAt: string;
   source: string;
   sourceUrl?: string;
+  arena?: { dataset: string; category: string; publishDate: string };
   note: string;
   models: BenchmarkModel[];
 }
@@ -90,8 +99,16 @@ export interface ScoredCandidate {
   amountUnits: number;
   completionMs: number;
   intelligenceIndex: number;
+  arenaModel: string;
+  arenaRating: number;
+  effortPairing: string;
   priceScore: number;
   timeScore: number;
+  /** AA 지능 지수를 후보 안에서 100점 만점으로 바꾼 값. */
+  aaScore: number;
+  /** Arena Elo를 "1등 후보와 붙었을 때 이길 확률"로 바꿔 100점 만점으로 만든 값. */
+  arenaScore: number;
+  /** 성능 점수 = (aaScore + arenaScore) / 2. 가중치의 "성능" 칸에 들어간다. */
   intelligenceScore: number;
   totalScore: number;
   rank: number;
@@ -111,6 +128,14 @@ export interface Decision {
     minAmountUnits: number;
     minCompletionMs: number;
     maxIntelligenceIndex: number;
+    maxArenaRating: number;
+  };
+  /** 성능 점수를 만든 출처와 각 출처의 기준 시점. */
+  performanceSources: {
+    aa: string;
+    arena: string;
+    arenaPublishDate: string | null;
+    combine: string;
   };
   candidates: ScoredCandidate[];
   rejected: RejectedCandidate[];

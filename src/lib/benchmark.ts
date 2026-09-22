@@ -13,10 +13,12 @@ import path from "node:path";
 import type { BenchmarkModel, BenchmarkSnapshot, Catalog, CatalogEntry } from "./types";
 
 // 테스트는 값이 고정된 픽스처 폴더를 가리킨다. 실제 실행은 data/ 를 쓴다.
-const DATA_DIR = process.env.AGENT_M2M_DATA_DIR ?? path.join(process.cwd(), "data");
+function dataDir(): string {
+  return process.env.AGENT_M2M_DATA_DIR ?? path.join(process.cwd(), "data");
+}
 
 function readJson<T>(fileName: string): { value: T; hash: string } {
-  const raw = readFileSync(path.join(DATA_DIR, fileName), "utf8");
+  const raw = readFileSync(path.join(dataDir(), fileName), "utf8");
   const hash = `sha256:${createHash("sha256").update(raw).digest("hex")}`;
   return { value: JSON.parse(raw) as T, hash };
 }

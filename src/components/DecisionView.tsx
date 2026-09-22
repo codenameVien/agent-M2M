@@ -113,17 +113,23 @@ export function PurchaseSummary({ record }: { record: PurchaseRecord }) {
   );
 }
 
-/** 후보 점수표 + 탈락 후보표. */
+/** 점수가 없는 옛 기록(두 출처 도입 전)도 깨지지 않게 보여준다. */
+function maybe(value: number | undefined): string {
+  return value === undefined ? "-" : score(value);
+}
+
+/** 후보 점수표 + 성능 점수 내역 + 탈락 후보표. */
 export function CandidateTables({ record }: { record: PurchaseRecord }) {
   const { decision } = record;
+  const sources = decision.performanceSources;
   return (
     <>
       <h2>후보 점수</h2>
       <p className="muted">
         기준값 — 최저 금액 {aegisText(decision.references.minAmountUnits)} · 최단 완료{" "}
-        {fmt(decision.references.minCompletionMs)} ms · 최고 지능 {decision.references.maxIntelligenceIndex}.
-        각 점수는 기준값 대비 100점 만점, 총점은 가중치(가격 {decision.weights.price} / 시간{" "}
-        {decision.weights.time} / 지능 {decision.weights.intelligence})의 합.
+        {fmt(decision.references.minCompletionMs)} ms. 각 점수는 100점 만점이고, 총점은 가중치(가격{" "}
+        {decision.weights.price} / 속도 {decision.weights.time} / 성능 {decision.weights.intelligence})로 합친
+        값입니다.
       </p>
       <div className="table-wrap">
         <table>
@@ -133,10 +139,9 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
               <th>모델</th>
               <th className="num">금액 (AEGIS)</th>
               <th className="num">완료 (ms)</th>
-              <th className="num">지능 지수</th>
               <th className="num">가격 점수</th>
-              <th className="num">시간 점수</th>
-              <th className="num">지능 점수</th>
+              <th className="num">속도 점수</th>
+              <th className="num">성능 점수</th>
               <th className="num">총점</th>
             </tr>
           </thead>
@@ -151,7 +156,6 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
                 </td>
                 <td className="num">{toAegis(candidate.amountUnits)}</td>
                 <td className="num">{fmt(candidate.completionMs)}</td>
-                <td className="num">{candidate.intelligenceIndex}</td>
                 <td className="num">{score(candidate.priceScore)}</td>
                 <td className="num">{score(candidate.timeScore)}</td>
                 <td className="num">{score(candidate.intelligenceScore)}</td>
@@ -161,6 +165,52 @@ export function CandidateTables({ record }: { record: PurchaseRecord }) {
           </tbody>
         </table>
       </div>
+
+      <h2>성능 점수 내역 · 두 출처</h2>
+      {sources === undefined ? (
+        <p className="muted">이 기록은 두 출처를 합치기 전에 만들어져 AA 지능 지수 하나로 계산했습니다.</p>
+      ) : (
+        <>
+          <p className="muted">
+            성능 점수 = ({sources.aa} 점수 + {sources.arena} 점수) ÷ 2. AA 점수는 최고 지능 지수(
+            {decision.references.maxIntelligenceIndex}) 대비, Arena 점수는 1등 후보(Elo{" "}
+            {decision.references.maxArenaRating})와 붙었을 때 이길 확률로 환산했습니다
+            {sources.arenaPublishDate !== null && <> · Arena 발행일 {sources.arenaPublishDate}</>}.
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>모델</th>
+                  <th className="num">AA 지능 지수</th>
+                  <th className="num">AA 점수</th>
+                  <th className="num">Arena Elo</th>
+                  <th className="num">Arena 점수</th>
+                  <th className="num">성능 점수</th>
+                  <th>비교한 노력 수준</th>
+                </tr>
+              </thead>
+              <tbody>
+                {decision.candidates.map((candidate) => (
+                  <tr key={candidate.key}>
+                    <td>
+                      {candidate.displayName}
+                      <br />
+                      <code>{candidate.arenaModel ?? "-"}</code>
+                    </td>
+                    <td className="num">{candidate.intelligenceIndex}</td>
+                    <td className="num">{maybe(candidate.aaScore)}</td>
+                    <td className="num">{candidate.arenaRating === undefined ? "-" : fmt(Math.round(candidate.arenaRating))}</td>
+                    <td className="num">{maybe(candidate.arenaScore)}</td>
+                    <td className="num">{score(candidate.intelligenceScore)}</td>
+                    <td className="muted">{candidate.effortPairing || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <h2>탈락 후보</h2>
       {decision.rejected.length === 0 ? (

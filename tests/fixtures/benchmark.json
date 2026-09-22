@@ -12,7 +12,9 @@
       "inputPricePerMillion": "0.4",
       "outputPricePerMillion": "1.6",
       "medianEndToEndSeconds": "8.4",
-      "intelligenceIndex": "41.5"
+      "intelligenceIndex": "41.5",
+      "arenaModel": "test-mini-arena",
+      "arenaRating": "1400"
     },
     {
       "key": "anthropic:test-haiku",
@@ -21,7 +23,9 @@
       "inputPricePerMillion": "1",
       "outputPricePerMillion": "5",
       "medianEndToEndSeconds": "12.5",
-      "intelligenceIndex": "55.2"
+      "intelligenceIndex": "55.2",
+      "arenaModel": "test-haiku-arena",
+      "arenaRating": "1450"
     },
     {
       "key": "google:test-flash",
@@ -30,7 +34,14 @@
       "inputPricePerMillion": "0.3",
       "outputPricePerMillion": "2.5",
       "medianEndToEndSeconds": "4.75",
-      "intelligenceIndex": "48"
+      "intelligenceIndex": "48",
+      "arenaModel": "test-flash-arena",
+      "arenaRating": "1425"
     }
-  ]
+  ],
+  "arena": {
+    "dataset": "fixture",
+    "category": "overall",
+    "publishDate": "2026-01-01"
+  }
 }

@@ -7,6 +7,13 @@
  *   3) 살아남은 후보끼리만 점수를 낸다
  *   4) 총점과 고정된 동점 규칙으로 1등을 정한다
  * 필터를 점수보다 먼저 거는 이유는, 못 쓸 후보가 점수의 기준선을 흔들지 않게 하기 위해서다.
+ *
+ * 성능 점수는 두 출처를 합친다. 한 사이트 숫자만 믿으면 그 사이트가 틀렸을 때 막을 방법이 없어서다.
+ *   AA 점수    = 내 지능 지수 ÷ 후보 중 최고 지능 지수 × 100
+ *   Arena 점수 = 1등 후보와 붙었을 때 이길 확률 × 200 (1등은 50% → 100점)
+ *   성능 점수  = 두 점수의 평균
+ * Elo는 차이만 의미가 있는 점수라 그냥 나누면(1430 ÷ 1505 = 95%) 차이가 다 뭉개진다.
+ * 그래서 Elo 본래 의미인 "이길 확률"로 바꾼 뒤 합친다.
  */
 
 import { loadCatalog, loadSnapshot, pairEntries } from "./benchmark";
@@ -68,6 +75,12 @@ export function estimateInputTokens(prompt: string): number {
   return Math.max(1, Math.ceil(bytes / 4));
 }
 
+/** Elo 차이를 1등 대비 상대 점수로. 1등 = 100, 400점 낮으면 약 18점. */
+export function arenaWinScore(rating: number, bestRating: number): number {
+  const winProbability = 1 / (1 + 10 ** ((bestRating - rating) / 400));
+  return winProbability * 200;
+}
+
 function round(value: number): number {
   return Math.round(value * 1e6) / 1e6;
 }
@@ -103,11 +116,18 @@ export function decide(request: PurchaseRequest): Decision {
     if (units <= 0) {
       throw new SelectionError(`${entry.key}: 계산된 금액이 0이라 결제할 수 없습니다`);
     }
+    const arenaRating = Number(metrics.arenaRating);
+    if (!Number.isFinite(arenaRating) || arenaRating <= 0) {
+      // 한 출처라도 비면 기본값으로 메우지 않고 멈춘다. 빈칸을 채우면 점수가 조작된다.
+      throw new SelectionError(`${entry.key}: Arena 점수가 없어 성능 점수를 만들 수 없습니다`);
+    }
     return {
       entry,
       amountUnits: units,
       completionMs: Number(metrics.medianEndToEndSeconds) * 1000,
       intelligenceIndex: Number(metrics.intelligenceIndex),
+      arenaModel: metrics.arenaModel,
+      arenaRating,
     };
   });
 
@@ -139,12 +159,15 @@ export function decide(request: PurchaseRequest): Decision {
   const minAmountUnits = Math.min(...eligible.map((item) => item.amountUnits));
   const minCompletionMs = Math.min(...eligible.map((item) => item.completionMs));
   const maxIntelligenceIndex = Math.max(...eligible.map((item) => item.intelligenceIndex));
+  const maxArenaRating = Math.max(...eligible.map((item) => item.arenaRating));
   const weights = PRIORITY_WEIGHTS[request.priority];
 
   const scored = eligible.map((candidate) => {
     const priceScore = round((minAmountUnits / candidate.amountUnits) * 100);
     const timeScore = round((minCompletionMs / candidate.completionMs) * 100);
-    const intelligenceScore = round((candidate.intelligenceIndex / maxIntelligenceIndex) * 100);
+    const aaScore = round((candidate.intelligenceIndex / maxIntelligenceIndex) * 100);
+    const arenaScore = round(arenaWinScore(candidate.arenaRating, maxArenaRating));
+    const intelligenceScore = round((aaScore + arenaScore) / 2);
     const totalScore = round(
       (priceScore * weights.price +
         timeScore * weights.time +
@@ -160,8 +183,13 @@ export function decide(request: PurchaseRequest): Decision {
       amountUnits: candidate.amountUnits,
       completionMs: candidate.completionMs,
       intelligenceIndex: candidate.intelligenceIndex,
+      arenaModel: candidate.arenaModel,
+      arenaRating: candidate.arenaRating,
+      effortPairing: candidate.entry.effortPairing ?? "",
       priceScore,
       timeScore,
+      aaScore,
+      arenaScore,
       intelligenceScore,
       totalScore,
       rank: 0,
@@ -189,7 +217,13 @@ export function decide(request: PurchaseRequest): Decision {
     estimatedInputTokens: inputTokens,
     maxOutputTokens,
     budgetUnits: request.budgetUnits,
-    references: { minAmountUnits, minCompletionMs, maxIntelligenceIndex },
+    references: { minAmountUnits, minCompletionMs, maxIntelligenceIndex, maxArenaRating },
+    performanceSources: {
+      aa: "Artificial Analysis 지능 지수",
+      arena: "LMArena 텍스트 리더보드 Elo (overall)",
+      arenaPublishDate: snapshot.arena?.publishDate ?? null,
+      combine: "AA 점수와 Arena 승률 점수의 평균",
+    },
     candidates: scored,
     rejected,
     winner: scored[0]!,

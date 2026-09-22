@@ -1,6 +1,10 @@
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
-import { amountUnits, decide, SelectionError } from "../src/lib/select";
+import { amountUnits, arenaWinScore, decide, SelectionError } from "../src/lib/select";
 
 /** 400 입력 토큰이 나오도록 1600 바이트짜리 ASCII 요청을 만든다(4바이트 = 1토큰 어림). */
 const PROMPT_400 = "a".repeat(1600);
@@ -53,5 +57,42 @@ describe("decide", () => {
     const first = decide({ prompt: PROMPT_400, budgetUnits: 50_000, priority: "speed" });
     const second = decide({ prompt: PROMPT_400, budgetUnits: 50_000, priority: "speed" });
     expect(second).toEqual(first);
+  });
+});
+
+describe("두 출처 성능 점수", () => {
+  it("Arena 점수는 1등 대비 승률로 환산한다 — 1등 100점, 400점 낮으면 약 18점", () => {
+    expect(arenaWinScore(1500, 1500)).toBeCloseTo(100, 6);
+    expect(arenaWinScore(1100, 1500)).toBeCloseTo(200 / 11, 6);
+  });
+
+  it("성능 점수는 AA 점수와 Arena 점수의 평균이다", () => {
+    const decision = decide({ prompt: PROMPT_400, budgetUnits: 50_000, priority: "intelligence" });
+    for (const candidate of decision.candidates) {
+      expect(candidate.intelligenceScore).toBeCloseTo((candidate.aaScore + candidate.arenaScore) / 2, 5);
+    }
+    // 픽스처에서 Arena 1등은 1450점짜리 Anthropic 테스트 모델이다.
+    const top = decision.candidates.find((item) => item.key === "anthropic:test-haiku")!;
+    expect(top.arenaScore).toBeCloseTo(100, 6);
+    expect(decision.references.maxArenaRating).toBe(1450);
+  });
+
+  it("Arena 점수가 빠진 모델이 있으면 기본값으로 메우지 않고 멈춘다", () => {
+    const fixtures = path.join(import.meta.dirname, "fixtures");
+    const dir = mkdtempSync(path.join(tmpdir(), "agent-m2m-"));
+    cpSync(fixtures, dir, { recursive: true });
+    const file = path.join(dir, "benchmark.json");
+    const snapshot = JSON.parse(readFileSync(file, "utf8"));
+    delete snapshot.models[0].arenaRating;
+    writeFileSync(file, JSON.stringify(snapshot));
+    const previous = process.env.AGENT_M2M_DATA_DIR;
+    process.env.AGENT_M2M_DATA_DIR = dir;
+    try {
+      expect(() => decide({ prompt: PROMPT_400, budgetUnits: 50_000, priority: "default" })).toThrow(
+        SelectionError,
+      );
+    } finally {
+      process.env.AGENT_M2M_DATA_DIR = previous;
+    }
   });
 });

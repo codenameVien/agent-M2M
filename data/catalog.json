@@ -1,30 +1,36 @@
 {
-  "catalogVersion": "agent-m2m-v2",
+  "catalogVersion": "agent-m2m-v3",
   "entries": [
     {
-      "key": "openai:gpt-5.6-luna-low",
+      "key": "openai:gpt-5.6-luna",
       "providerId": "openai",
-      "providerModelId": "gpt-5-6-luna-low",
-      "displayName": "OpenAI GPT-5.6 Luna (low)",
-      "aaSlug": "gpt-5-6-luna-low",
+      "providerModelId": "gpt-5-6-luna",
+      "displayName": "OpenAI GPT-5.6 Luna",
+      "aaSlug": "gpt-5-6-luna",
+      "arenaModel": "gpt-5.6-luna-xhigh",
+      "effortPairing": "AA max ↔ Arena xhigh (인접한 최상위 단계)",
       "recipient": "0xF00E8e0ecEF3B405250242F932849edB409497a0",
       "capabilities": ["korean", "reasoning"]
     },
     {
-      "key": "anthropic:claude-opus-5-low",
+      "key": "anthropic:claude-opus-5",
       "providerId": "anthropic",
-      "providerModelId": "claude-opus-5-low",
-      "displayName": "Anthropic Claude Opus 5 (low)",
-      "aaSlug": "claude-opus-5-low",
+      "providerModelId": "claude-opus-5-xhigh",
+      "displayName": "Anthropic Claude Opus 5",
+      "aaSlug": "claude-opus-5-xhigh",
+      "arenaModel": "claude-opus-5-max",
+      "effortPairing": "AA xhigh ↔ Arena max (인접한 최상위 단계)",
       "recipient": "0xC77492d3AD5c97B09C6529284e71c417Be8926d8",
       "capabilities": ["korean", "reasoning", "vision"]
     },
     {
-      "key": "google:gemini-3.5-flash-minimal",
+      "key": "google:gemini-3.5-flash",
       "providerId": "google",
-      "providerModelId": "gemini-3-5-flash-minimal",
-      "displayName": "Google Gemini 3.5 Flash (minimal)",
-      "aaSlug": "gemini-3-5-flash-minimal",
+      "providerModelId": "gemini-3-5-flash",
+      "displayName": "Google Gemini 3.5 Flash",
+      "aaSlug": "gemini-3-5-flash",
+      "arenaModel": "gemini-3.5-flash-high",
+      "effortPairing": "AA high ↔ Arena high (같은 단계)",
       "recipient": "0x5363903850f7AD4bF5FdbceFe9769A9e5b7080E4",
       "capabilities": ["korean"]
     }

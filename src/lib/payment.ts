@@ -79,7 +79,7 @@ export function paymentConfig(): PaymentConfig {
     tokenAddress: process.env.AEGIS_TOKEN_ADDRESS ?? "",
     chainId: Number(process.env.AEGIS_CHAIN_ID ?? baseSepolia.id),
     rpcUrl: process.env.AEGIS_RPC_URL ?? "https://sepolia.base.org",
-    maxTransactionUnits: Number(process.env.AEGIS_MAX_TRANSACTION_UNITS ?? 100_000),
+    maxTransactionUnits: Number(process.env.AEGIS_MAX_TRANSACTION_UNITS ?? 500_000),
     buyerAddress:
       key === undefined || key.trim() === ""
         ? null

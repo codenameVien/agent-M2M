@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PurchaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const record = getPurchase(id);
+  const record = await getPurchase(id);
   if (record === null) notFound();
 
   return (

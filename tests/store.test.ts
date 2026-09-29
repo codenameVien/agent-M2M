@@ -1,17 +1,15 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { PurchaseRecord } from "../src/lib/types";
 
-// store.ts 는 불러올 때 경로를 읽으므로, 환경변수를 먼저 정한 뒤 동적으로 불러온다.
-const dir = mkdtempSync(path.join(tmpdir(), "agent-m2m-"));
-process.env.AGENT_M2M_DB = path.join(dir, "test.db");
+// store.ts 는 불러올 때 접속 정보를 읽으므로, 환경변수를 먼저 정한 뒤 동적으로 불러온다.
+// 실행 중인 로컬 MongoDB에 테스트 전용 데이터베이스를 만들고 끝나면 통째로 지운다.
+process.env.MONGODB_DB = `agent_m2m_test_${Date.now()}`;
 const store = await import("../src/lib/store");
 
-afterAll(() => {
-  rmSync(dir, { recursive: true, force: true });
+afterAll(async () => {
+  await store.dropTestDatabase();
+  await store.closeStore();
 });
 
 function sample(id: string): PurchaseRecord {
@@ -80,24 +78,24 @@ function sample(id: string): PurchaseRecord {
 }
 
 describe("store", () => {
-  it("저장한 기록을 그대로 다시 읽는다", () => {
+  it("저장한 기록을 그대로 다시 읽는다", async () => {
     const record = sample("id-1");
-    store.savePurchase(record);
-    expect(store.purchaseExists("id-1")).toBe(true);
-    expect(store.getPurchase("id-1")).toEqual(record);
-    expect(store.getPurchase("없는-id")).toBeNull();
+    await store.savePurchase(record);
+    expect(await store.purchaseExists("id-1")).toBe(true);
+    expect(await store.getPurchase("id-1")).toEqual(record);
+    expect(await store.getPurchase("없는-id")).toBeNull();
   });
 
-  it("목록은 최신 순이다", () => {
+  it("목록은 최신 순이다", async () => {
     const older = { ...sample("id-2"), createdAt: "2026-01-01T00:00:00.000Z" };
     const newer = { ...sample("id-3"), createdAt: "2026-02-01T00:00:00.000Z" };
-    store.savePurchase(older);
-    store.savePurchase(newer);
-    const ids = store.listPurchases().map((item) => item.id);
+    await store.savePurchase(older);
+    await store.savePurchase(newer);
+    const ids = (await store.listPurchases()).map((item) => item.id);
     expect(ids.indexOf("id-3")).toBeLessThan(ids.indexOf("id-2"));
   });
 
-  it("같은 구매 번호는 두 번 저장되지 않는다", () => {
-    expect(() => store.savePurchase(sample("id-1"))).toThrow();
+  it("같은 구매 번호는 두 번 저장되지 않는다", async () => {
+    await expect(store.savePurchase(sample("id-1"))).rejects.toThrow();
   });
 });

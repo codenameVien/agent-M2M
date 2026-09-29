@@ -11,7 +11,7 @@ AI 구매 에이전트가 벤치마크 표를 보고 모델 하나를 고른 뒤
 3. **결제**: 선택된 모델의 수신자 주소로 AEGIS `transfer` (기본은 mock).
 4. **확인**: 판매창구가 체인의 Transfer 기록에서 수신자·금액을 대조(live일 때).
 5. **결과**: Mock 응답 문장.
-6. **기록**: 후보·점수·탈락 사유·가중치·스냅샷 해시·거래번호를 SQLite에 덧붙임.
+6. **기록**: 후보·점수·탈락 사유·가중치·스냅샷 해시·거래번호를 MongoDB에 덧붙임.
 
 ## 실행
 
@@ -36,7 +36,7 @@ npm run build
 | `AEGIS_RPC_URL` | `https://sepolia.base.org` | RPC |
 | `AEGIS_BUYER_PRIVATE_KEY` | (비움) | 구매자 지갑 개인키. live에서만 필요 |
 | `AEGIS_MAX_TRANSACTION_UNITS` | `500000` | 1건 상한(units, 0.5 AEGIS) |
-| `AGENT_M2M_DB` | `data/agent-m2m.db` | SQLite 파일 경로 |
+| `AGENT_M2M_DB` | `MongoDB · agent_m2m` | MongoDB 파일 경로 |
 
 > **경고** — 실제 토큰 전송은 기본적으로 일어나지 않습니다(mock). `AEGIS_PAYMENT_MODE=live` **와** `AEGIS_REAL_PAYMENT_APPROVED=yes` 두 변수가 모두 켜져 있고 개인키가 있을 때만 Base Sepolia에서 실제 `transfer`가 실행됩니다. 개인키는 절대 커밋하지 마세요.
 
@@ -74,3 +74,14 @@ node scripts/capture-benchmark.mjs --arena opus    # Arena 모델 이름 검색
 
 AA 키는 `.env.local` 의 `AA_API_KEY` 에서만 읽습니다. 떠온 시각과 Arena 발행일이 파일에 함께 저장되고,
 결정 기록에는 그 파일의 해시가 남습니다. 테스트는 `tests/fixtures/` 의 고정 숫자만 봅니다.
+
+## 기록 저장소
+
+구매 기록은 로컬 MongoDB의 `agent_m2m` 데이터베이스에 저장한다. 실행 전에 MongoDB가 떠 있어야 한다.
+
+```bash
+brew services start mongodb-community   # 꺼져 있을 때만
+```
+
+접속 주소는 `MONGODB_URI`, 데이터베이스 이름은 `MONGODB_DB` 로 바꿀 수 있다.
+테스트는 `agent_m2m_test_...` 이름의 임시 데이터베이스를 만들고 끝나면 지운다.

@@ -10,8 +10,8 @@ function when(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { hour12: false });
 }
 
-export default function PurchasesPage() {
-  const records = listPurchases();
+export default async function PurchasesPage() {
+  const records = await listPurchases();
   return (
     <>
       <h1>구매 기록</h1>

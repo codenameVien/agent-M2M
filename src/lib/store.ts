@@ -1,96 +1,84 @@
 /**
  * 기록. 구매 한 건에 대해 요청·후보·점수·탈락 사유·금액·거래번호·결과를 남긴다.
  *
- * SQLite 파일 하나(data/agent-m2m.db)에 저장한다. 화면은 이 파일을 직접 열지 않고
- * 이 모듈의 함수만 쓴다. 한 번 저장한 줄은 고치지 않는다(덧붙이기만).
+ * MongoDB 컬렉션 하나(purchases)에 저장한다. 화면은 DB에 직접 붙지 않고 이 모듈의 함수만 쓴다.
+ * 한 번 저장한 문서는 고치지 않는다(덧붙이기만).
+ *
+ * 문서를 JSON 문자열로 뭉쳐 넣지 않고 그대로 넣는 이유는, 나중에 "같은 수신자에게 반복 결제",
+ * "시간대별 묶기" 같은 질의를 DB에서 바로 돌리기 위해서다. 구매 번호를 `_id` 로 쓰므로
+ * 같은 번호를 두 번 저장하려 하면 DB가 거부한다.
  */
 
-import Database from "better-sqlite3";
-import path from "node:path";
+import { MongoClient, type Collection, type Db } from "mongodb";
 
-import type { Decision, PaymentResult, PurchaseRecord, PurchaseStatus } from "./types";
+import type { PurchaseRecord } from "./types";
 
-const DB_PATH = process.env.AGENT_M2M_DB ?? path.join(process.cwd(), "data", "agent-m2m.db");
+const URI = process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017";
+const DB_NAME = process.env.MONGODB_DB ?? "agent_m2m";
+const COLLECTION = "purchases";
 
-let cached: Database.Database | null = null;
+/** `_id` 에 구매 번호가 들어간 저장 형태. */
+type PurchaseDocument = Omit<PurchaseRecord, "id"> & { _id: string };
 
-function db(): Database.Database {
-  if (cached !== null) return cached;
-  const instance = new Database(DB_PATH);
-  instance.pragma("journal_mode = WAL");
-  instance.exec(`
-    CREATE TABLE IF NOT EXISTS purchases (
-      id TEXT PRIMARY KEY,
-      created_at TEXT NOT NULL,
-      prompt TEXT NOT NULL,
-      status TEXT NOT NULL,
-      decision_json TEXT NOT NULL,
-      payment_json TEXT,
-      result_text TEXT,
-      failure_reason TEXT
-    );
-  `);
-  cached = instance;
-  return instance;
+let client: MongoClient | null = null;
+let ready: Promise<Collection<PurchaseDocument>> | null = null;
+
+async function connect(): Promise<Collection<PurchaseDocument>> {
+  const connected = new MongoClient(URI);
+  await connected.connect();
+  client = connected;
+  const db: Db = connected.db(DB_NAME);
+  const collection = db.collection<PurchaseDocument>(COLLECTION);
+  // 최근 순 조회가 기본이라 정렬 기준에 색인을 둔다.
+  await collection.createIndex({ createdAt: -1 });
+  return collection;
 }
 
-interface Row {
-  id: string;
-  created_at: string;
-  prompt: string;
-  status: string;
-  decision_json: string;
-  payment_json: string | null;
-  result_text: string | null;
-  failure_reason: string | null;
+function purchases(): Promise<Collection<PurchaseDocument>> {
+  ready ??= connect();
+  return ready;
 }
 
-function toRecord(row: Row): PurchaseRecord {
-  return {
-    id: row.id,
-    createdAt: row.created_at,
-    prompt: row.prompt,
-    status: row.status as PurchaseStatus,
-    decision: JSON.parse(row.decision_json) as Decision,
-    payment: row.payment_json === null ? null : (JSON.parse(row.payment_json) as PaymentResult),
-    resultText: row.result_text,
-    failureReason: row.failure_reason,
-  };
+function toRecord(document: PurchaseDocument): PurchaseRecord {
+  const { _id, ...rest } = document;
+  return { id: _id, ...rest };
 }
 
-export function savePurchase(record: PurchaseRecord): void {
-  db()
-    .prepare(
-      `INSERT INTO purchases
-         (id, created_at, prompt, status, decision_json, payment_json, result_text, failure_reason)
-       VALUES (@id, @createdAt, @prompt, @status, @decisionJson, @paymentJson, @resultText, @failureReason)`,
-    )
-    .run({
-      id: record.id,
-      createdAt: record.createdAt,
-      prompt: record.prompt,
-      status: record.status,
-      decisionJson: JSON.stringify(record.decision),
-      paymentJson: record.payment === null ? null : JSON.stringify(record.payment),
-      resultText: record.resultText,
-      failureReason: record.failureReason,
-    });
+export async function savePurchase(record: PurchaseRecord): Promise<void> {
+  const { id, ...rest } = record;
+  await (await purchases()).insertOne({ _id: id, ...rest });
 }
 
-export function listPurchases(limit = 50): PurchaseRecord[] {
-  const rows = db()
-    .prepare(`SELECT * FROM purchases ORDER BY created_at DESC, id DESC LIMIT ?`)
-    .all(limit) as Row[];
-  return rows.map(toRecord);
+export async function listPurchases(limit = 50): Promise<PurchaseRecord[]> {
+  const documents = await (await purchases())
+    .find({}, { sort: { createdAt: -1, _id: -1 }, limit })
+    .toArray();
+  return documents.map(toRecord);
 }
 
-export function getPurchase(id: string): PurchaseRecord | null {
-  const row = db().prepare(`SELECT * FROM purchases WHERE id = ?`).get(id) as Row | undefined;
-  return row === undefined ? null : toRecord(row);
+export async function getPurchase(id: string): Promise<PurchaseRecord | null> {
+  const document = await (await purchases()).findOne({ _id: id });
+  return document === null ? null : toRecord(document);
 }
 
 /** 같은 구매 번호로 결제가 두 번 일어나지 않게 하는 확인. */
-export function purchaseExists(id: string): boolean {
-  const row = db().prepare(`SELECT 1 FROM purchases WHERE id = ?`).get(id);
-  return row !== undefined;
+export async function purchaseExists(id: string): Promise<boolean> {
+  return (await (await purchases()).countDocuments({ _id: id }, { limit: 1 })) > 0;
+}
+
+/** 테스트가 쓰고 버리는 데이터베이스를 지울 때 쓴다. 이름이 테스트용일 때만 지운다. */
+export async function dropTestDatabase(): Promise<void> {
+  if (!DB_NAME.startsWith("agent_m2m_test")) {
+    throw new Error(`테스트 데이터베이스가 아닙니다: ${DB_NAME}`);
+  }
+  await purchases();
+  await client?.db(DB_NAME).dropDatabase();
+}
+
+/** 테스트가 연결을 정리할 때 쓴다. 앱 실행 중에는 부르지 않는다. */
+export async function closeStore(): Promise<void> {
+  const open = client;
+  client = null;
+  ready = null;
+  await open?.close();
 }

@@ -16,7 +16,7 @@ import type { PurchaseRecord, PurchaseRequest } from "./types";
 
 export async function runPurchase(request: PurchaseRequest): Promise<PurchaseRecord> {
   const id = randomUUID();
-  if (purchaseExists(id)) throw new Error("구매 번호가 중복되었습니다");
+  if (await purchaseExists(id)) throw new Error("구매 번호가 중복되었습니다");
 
   // 1) 선택 — 여기서 실패하면 결제는 시작조차 하지 않는다.
   const decision = decide(request);
@@ -44,7 +44,7 @@ export async function runPurchase(request: PurchaseRequest): Promise<PurchaseRec
       resultText,
       failureReason: null,
     };
-    savePurchase(record);
+    await savePurchase(record);
     return record;
   } catch (error) {
     const reason =
@@ -63,7 +63,7 @@ export async function runPurchase(request: PurchaseRequest): Promise<PurchaseRec
       resultText: null,
       failureReason: reason,
     };
-    savePurchase(record);
+    await savePurchase(record);
     return record;
   }
 }

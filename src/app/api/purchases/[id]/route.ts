@@ -11,7 +11,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await context.params;
-  const record = getPurchase(id);
+  const record = await getPurchase(id);
   if (record === null) {
     return NextResponse.json({ error: "해당 구매 기록이 없습니다" }, { status: 404 });
   }

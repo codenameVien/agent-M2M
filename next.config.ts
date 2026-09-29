@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // better-sqlite3는 네이티브 모듈이라 번들에 넣지 않고 그대로 불러온다.
-  serverExternalPackages: ["better-sqlite3"],
+  // mongodb 드라이버는 서버에서만 쓰므로 번들에 넣지 않고 그대로 불러온다.
+  serverExternalPackages: ["mongodb"],
 };
 
 export default nextConfig;

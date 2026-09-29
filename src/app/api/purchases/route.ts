@@ -7,5 +7,5 @@ import { listPurchases } from "@/lib/store";
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<NextResponse> {
-  return NextResponse.json(listPurchases());
+  return NextResponse.json(await listPurchases());
 }

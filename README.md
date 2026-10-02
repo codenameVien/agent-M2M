@@ -7,11 +7,22 @@ AI 구매 에이전트가 벤치마크 표를 보고 모델 하나를 고른 뒤
 요청 → 선택 → 결제 → 확인 → 결과 → 기록
 
 1. **요청**: 요청 내용, 예산(units), 우선순위(기본·가격·속도·지능), 필요 기능.
-2. **선택**: 후보마다 금액 계산 → 예산·필요 기능으로 하드 필터 → 살아남은 후보끼리 가격·시간·지능 점수 → 가중치 합산 → 고정 규칙으로 동점 처리.
+2. **선택**: 후보마다 금액 계산 → 필요 기능으로 하드 필터 → 살아남은 후보끼리 가격·시간·지능 점수 → 가중치 합산 → 고정 규칙으로 동점 처리. 예산은 선택에서 거르지 않고, 예산을 넘는 선택은 감사 단계에서 경고로 잡습니다.
 3. **결제**: 선택된 모델의 수신자 주소로 AEGIS `transfer` (기본은 mock).
 4. **확인**: 판매창구가 체인의 Transfer 기록에서 수신자·금액을 대조(live일 때).
 5. **결과**: Mock 응답 문장.
 6. **기록**: 후보·점수·탈락 사유·가중치·스냅샷 해시·거래번호를 MongoDB에 덧붙임.
+7. **감사**: 저장된 기록을 고정 규칙(가중치 불일치, 예산 초과 등)으로 다시 확인해 대시보드에 경고로 보여줌. 결과는 저장하지 않고 볼 때마다 계산.
+
+## 화면
+
+| 경로 | 내용 |
+| --- | --- |
+| `/` | 새 구매 요청 |
+| `/dashboard` | 요약 · 최근 기록 · 구매자 지갑 잔액 · 감사 경고 |
+| `/dashboard/purchases` | 전체 요청·결제 기록 |
+| `/dashboard/[id]` | 기록 한 건의 결정 근거 |
+| `/dashboard/alerts` | 감사 경고 목록 |
 
 ## 실행
 
@@ -31,18 +42,19 @@ npm run build
 | --- | --- | --- |
 | `AEGIS_PAYMENT_MODE` | `mock` | `live`면 실제 전송을 요청 |
 | `AEGIS_REAL_PAYMENT_APPROVED` | `no` | `yes`여야 live가 실제로 켜짐 |
-| `AEGIS_TOKEN_ADDRESS` | `0x3440…4a4b` | Base Sepolia에 배포된 AEGIS 토큰(소수점 6자리) |
+| `AEGIS_TOKEN_ADDRESS` | `0xE208…142b` | Base Sepolia에 배포된 AEGIS 토큰(소수점 6자리) |
 | `AEGIS_CHAIN_ID` | `84532` | Base Sepolia |
 | `AEGIS_RPC_URL` | `https://sepolia.base.org` | RPC |
 | `AEGIS_BUYER_PRIVATE_KEY` | (비움) | 구매자 지갑 개인키. live에서만 필요 |
-| `AEGIS_MAX_TRANSACTION_UNITS` | `500000` | 1건 상한(units, 0.5 AEGIS) |
-| `AGENT_M2M_DB` | `MongoDB · agent_m2m` | MongoDB 파일 경로 |
+| `AA_API_KEY` | (비움) | Artificial Analysis API 키. 벤치마크 자동 갱신·수동 캡처에 필요 |
+| `MONGODB_URI` | `mongodb://127.0.0.1:27017` | MongoDB 접속 주소 |
+| `MONGODB_DB` | `agent_m2m` | 기록을 담을 데이터베이스 이름 |
 
-> **경고** — 실제 토큰 전송은 기본적으로 일어나지 않습니다(mock). `AEGIS_PAYMENT_MODE=live` **와** `AEGIS_REAL_PAYMENT_APPROVED=yes` 두 변수가 모두 켜져 있고 개인키가 있을 때만 Base Sepolia에서 실제 `transfer`가 실행됩니다. 개인키는 절대 커밋하지 마세요.
+> **경고** — 실제 토큰 전송은 기본적으로 일어나지 않습니다(mock). `AEGIS_PAYMENT_MODE=live` **와** `AEGIS_REAL_PAYMENT_APPROVED=yes` 두 변수가 모두 켜져 있고 개인키가 있을 때만 Base Sepolia에서 실제 `transfer`가 실행됩니다. 1건당 금액 상한은 없으므로 live로 켤 때는 예산과 잔액을 직접 확인하세요. 개인키는 절대 커밋하지 마세요.
 
 ## 기술 스택
 
-Next.js 15 (App Router) · React 19 · TypeScript · viem · better-sqlite3 · vitest
+Next.js 15 (App Router) · React 19 · TypeScript · viem · MongoDB · vitest
 
 ## 벤치마크 값 갱신
 
@@ -64,7 +76,18 @@ Next.js 15 (App Router) · React 19 · TypeScript · viem · better-sqlite3 · v
 어느 단계끼리 짝지었는지 `effortPairing` 에 남깁니다. 이름으로 추측해서 찾지 않고, 한 출처라도
 값이 없으면 기본값으로 메우지 않고 멈춥니다.
 
-다시 뜨려면:
+### 자동 갱신
+
+구매 요청이 들어왔을 때 가장 최근 값이 **1시간보다 오래됐으면** 두 출처에서 새로 받습니다.
+
+- 새로 받은 값은 MongoDB `snapshots` 컬렉션에 해시를 키로 쌓습니다. 결정 기록에 남은 해시로 그때 본 숫자를 찾을 수 있습니다.
+- 받다가 실패하면(사이트 장애, 모델 이름 불일치 등) **마지막으로 받은 값으로 계속**하고, 실패 사유를 결정 기록에 남깁니다.
+- 한 번도 받지 않았으면 `data/benchmark.json` 을 시작값으로 씁니다.
+- 새로 받는 구매는 약 10초 더 걸립니다(Arena 데이터셋을 여러 쪽 나눠 받기 때문).
+
+### 손으로 다시 뜨기
+
+시작값을 새로 만들거나 이름을 검색할 때:
 
 ```bash
 node scripts/capture-benchmark.mjs
@@ -72,8 +95,8 @@ node scripts/capture-benchmark.mjs --list gemini   # AA 슬러그 검색
 node scripts/capture-benchmark.mjs --arena opus    # Arena 모델 이름 검색
 ```
 
-AA 키는 `.env.local` 의 `AA_API_KEY` 에서만 읽습니다. 떠온 시각과 Arena 발행일이 파일에 함께 저장되고,
-결정 기록에는 그 파일의 해시가 남습니다. 테스트는 `tests/fixtures/` 의 고정 숫자만 봅니다.
+AA 키는 `.env.local` 의 `AA_API_KEY` 에서만 읽습니다(자동 갱신도 같은 키를 씁니다). 떠온 시각과 Arena 발행일이
+스냅샷에 함께 저장되고, 결정 기록에는 그 스냅샷의 해시와 받아 온 시각이 남습니다. 테스트는 `tests/fixtures/` 의 고정 숫자만 봅니다.
 
 ## 기록 저장소
 

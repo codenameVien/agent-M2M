@@ -56,7 +56,6 @@ export function mockResult(prompt: string, winner: ScoredCandidate): string {
     `[Mock 응답 · ${winner.displayName}]`,
     `요청 요약: ${head}${prompt.trim().length > 60 ? "…" : ""}`,
     "",
-    "이 문장은 실제 모델 출력이 아니라 이 프로젝트가 만든 예시 응답입니다.",
-    `결제가 확인된 뒤 ${winner.providerModelId} 창구가 반환한 자리입니다.`,
+    "이 문장은 실제 모델 출력이 아니라 이 프로젝트가 만든 고정된 mock 예시 응답입니다.",
   ].join("\n");
 }

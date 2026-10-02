@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { SiteNav } from "@/components/SiteNav";
+import { currentMode } from "@/lib/purchase";
+
 import "./globals.css";
+
+// 결제 모드는 요청 시점의 환경변수로 정해지므로 빌드 때 고정하지 않는다.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "agent-M2M",
@@ -10,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const { mode } = currentMode();
   return (
     <html lang="ko">
       <body>
@@ -19,10 +25,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <span className="brandMark">M2M</span>
               agent-M2M
             </span>
-            <nav>
-              <Link href="/">새 요청</Link>
-              <Link href="/purchases">구매 기록</Link>
-            </nav>
+            <div className="right">
+              <SiteNav />
+              <span
+                className={`mode${mode === "live" ? " live" : ""}`}
+                title={mode === "live" ? "실제 AEGIS 토큰이 전송됩니다" : "실제 전송 없음"}
+              >
+                {mode === "live" ? "Live" : "Mock"}
+              </span>
+            </div>
           </div>
         </header>
         <main>{children}</main>

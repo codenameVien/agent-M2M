@@ -12,12 +12,12 @@ import { useState, type FormEvent } from "react";
 
 import { CandidateTables, PurchaseSummary } from "@/components/DecisionView";
 import { toAegis, toUnits } from "@/lib/format";
-import { PRIORITY_HINT, PRIORITY_LABEL } from "@/lib/priority-label";
+import { PRIORITY_LABEL } from "@/lib/priority-label";
 import { PRIORITIES, type PurchaseRecord } from "@/lib/types";
 
 const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({
   value,
-  label: `${PRIORITY_LABEL[value]} — ${PRIORITY_HINT[value]}`,
+  label: PRIORITY_LABEL[value],
 }));
 
 interface Turn {
@@ -27,7 +27,7 @@ interface Turn {
   error: string | null;
 }
 
-export function ChatPanel({ mode }: { mode: "mock" | "live" }) {
+export function ChatPanel() {
   const [prompt, setPrompt] = useState("");
   const [budget, setBudget] = useState("0.3");
   const [priority, setPriority] = useState<string>("default");
@@ -78,9 +78,6 @@ export function ChatPanel({ mode }: { mode: "mock" | "live" }) {
           <p className="muted">
             보내면 벤치마크 표로 모델을 고르고, 그 모델에 결제한 뒤 결과를 가져옵니다.
           </p>
-          <div className={`mode${mode === "live" ? " live" : ""}`}>
-            결제 모드: {mode === "live" ? "live — 실제 AEGIS 토큰이 전송됩니다" : "mock — 실제 전송 없음"}
-          </div>
         </div>
       ) : (
         <div className="chat-log">
@@ -120,7 +117,7 @@ export function ChatPanel({ mode }: { mode: "mock" | "live" }) {
                       <PurchaseSummary record={turn.record} />
                       <CandidateTables record={turn.record} />
                       <p className="muted">
-                        <Link href={`/purchases/${turn.record.id}`}>기록 상세 보기</Link>
+                        <Link href={`/dashboard/${turn.record.id}`}>기록 상세 보기</Link>
                       </p>
                     </div>
                   )}
@@ -172,9 +169,6 @@ export function ChatPanel({ mode }: { mode: "mock" | "live" }) {
               ))}
             </select>
           </label>
-          <span className="muted">
-            예산을 넘는 후보는 점수 계산 전에 탈락합니다 · 1 AEGIS = 1,000,000 units
-          </span>
         </div>
       </form>
     </div>

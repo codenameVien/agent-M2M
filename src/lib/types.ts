@@ -118,6 +118,10 @@ export interface ScoredCandidate {
 export interface Decision {
   snapshotId: string;
   snapshotHash: string;
+  /** 이 결정이 본 숫자를 받아 온 시각. 이 칸이 생기기 전 기록에는 없다. */
+  snapshotCapturedAt?: string;
+  /** 새 값을 받으려다 실패해 마지막 값으로 고른 경우 그 사유. */
+  snapshotRefreshError?: string;
   catalogVersion: string;
   priority: Priority;
   weights: Weights;

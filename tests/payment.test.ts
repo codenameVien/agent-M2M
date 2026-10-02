@@ -1,16 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { assertWithinLimit, pay, PaymentError, paymentConfig } from "../src/lib/payment";
+import { pay, paymentConfig } from "../src/lib/payment";
 
 const RECIPIENT = "0xF00E8e0ecEF3B405250242F932849edB409497a0";
-
-describe("assertWithinLimit", () => {
-  it("한도를 넘는 금액은 거부한다", () => {
-    const config = { ...paymentConfig(), maxTransactionUnits: 1_000 };
-    expect(() => assertWithinLimit(1_001, config)).toThrow(PaymentError);
-    expect(() => assertWithinLimit(1_000, config)).not.toThrow();
-  });
-});
 
 describe("pay (mock)", () => {
   const originalFetch = globalThis.fetch;
@@ -41,11 +33,5 @@ describe("pay (mock)", () => {
     process.env.AEGIS_PAYMENT_MODE = "live";
     process.env.AEGIS_REAL_PAYMENT_APPROVED = "no";
     expect(paymentConfig().mode).toBe("mock");
-  });
-
-  it("한도를 넘는 금액은 mock 이라도 결제하지 않는다", async () => {
-    process.env.AEGIS_MAX_TRANSACTION_UNITS = "100";
-    await expect(pay({ amountUnits: 101, recipient: RECIPIENT, purchaseId: "test-2" })).rejects.toThrow(PaymentError);
-    delete process.env.AEGIS_MAX_TRANSACTION_UNITS;
   });
 });

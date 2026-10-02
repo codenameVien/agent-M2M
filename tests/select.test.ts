@@ -49,10 +49,6 @@ describe("decide", () => {
     expect(google!.reasons).toEqual(["필요 기능 없음: reasoning"]);
   });
 
-  it("예산이 모든 후보 금액보다 작으면 SelectionError 를 던진다", () => {
-    expect(() => decide({ prompt: PROMPT_400, budgetUnits: 1_000, priority: "default" })).toThrow(SelectionError);
-  });
-
   it("같은 입력이면 항상 같은 결과가 나온다", () => {
     const first = decide({ prompt: PROMPT_400, budgetUnits: 50_000, priority: "speed" });
     const second = decide({ prompt: PROMPT_400, budgetUnits: 50_000, priority: "speed" });

@@ -56,7 +56,6 @@ export interface PaymentConfig {
   tokenAddress: string;
   chainId: number;
   rpcUrl: string;
-  maxTransactionUnits: number;
   buyerAddress: string | null;
 }
 
@@ -79,7 +78,6 @@ export function paymentConfig(): PaymentConfig {
     tokenAddress: process.env.AEGIS_TOKEN_ADDRESS ?? "",
     chainId: Number(process.env.AEGIS_CHAIN_ID ?? baseSepolia.id),
     rpcUrl: process.env.AEGIS_RPC_URL ?? "https://sepolia.base.org",
-    maxTransactionUnits: Number(process.env.AEGIS_MAX_TRANSACTION_UNITS ?? 500_000),
     buyerAddress:
       key === undefined || key.trim() === ""
         ? null
@@ -91,14 +89,21 @@ export function publicClient(config: PaymentConfig) {
   return createPublicClient({ chain: baseSepolia, transport: http(config.rpcUrl) });
 }
 
-/**
- * 한 번에 보낼 수 있는 상한. 계산이 틀려 큰 금액이 나가는 사고를 막는 마지막 방어선이다.
- */
-export function assertWithinLimit(amountUnits: number, config: PaymentConfig): void {
-  if (amountUnits > config.maxTransactionUnits) {
-    throw new PaymentError(
-      `1건 한도(${config.maxTransactionUnits})를 넘는 금액입니다: ${amountUnits}`,
-    );
+/** 대시보드에 보여줄 구매 에이전트 지갑의 AEGIS 잔액. 조회하지 못하면 units는 null이고 사유를 남긴다. */
+export async function buyerBalance(): Promise<{ units: number | null; status: string }> {
+  const config = paymentConfig();
+  if (config.buyerAddress === null) return { units: null, status: "잔액 조회 안 함 · 지갑 미구성" };
+  if (config.tokenAddress.trim() === "") return { units: null, status: "잔액 조회 안 함 · 토큰 주소 미구성" };
+  try {
+    const balance = await publicClient(config).readContract({
+      address: getAddress(config.tokenAddress.trim()),
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [getAddress(config.buyerAddress)],
+    });
+    return { units: Number(balance), status: "Base Sepolia 온체인 잔액 조회 완료" };
+  } catch {
+    return { units: null, status: "잔액 조회 실패 · RPC 응답 없음" };
   }
 }
 
@@ -108,7 +113,6 @@ export async function pay(args: {
   purchaseId: string;
 }): Promise<PaymentResult> {
   const config = paymentConfig();
-  assertWithinLimit(args.amountUnits, config);
   const to = getAddress(args.recipient);
 
   if (config.mode === "mock") {

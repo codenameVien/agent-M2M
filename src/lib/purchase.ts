@@ -8,6 +8,7 @@
 
 import { randomUUID } from "node:crypto";
 
+import { loadFreshSnapshot } from "./benchmark";
 import { pay, PaymentError, paymentConfig } from "./payment";
 import { DeliveryError, mockResult, verifyPayment } from "./provider";
 import { decide, SelectionError } from "./select";
@@ -19,7 +20,9 @@ export async function runPurchase(request: PurchaseRequest): Promise<PurchaseRec
   if (await purchaseExists(id)) throw new Error("구매 번호가 중복되었습니다");
 
   // 1) 선택 — 여기서 실패하면 결제는 시작조차 하지 않는다.
-  const decision = decide(request);
+  const source = await loadFreshSnapshot();
+  const decision = decide(request, source);
+  if (source.refreshError !== null) decision.snapshotRefreshError = source.refreshError;
   const createdAt = new Date().toISOString();
 
   try {

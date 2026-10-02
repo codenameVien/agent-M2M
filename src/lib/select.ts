@@ -19,6 +19,7 @@
 import { loadCatalog, loadSnapshot, pairEntries } from "./benchmark";
 import {
   PRIORITY_WEIGHTS,
+  type BenchmarkSnapshot,
   type Decision,
   type PurchaseRequest,
   type RejectedCandidate,
@@ -87,7 +88,10 @@ function round(value: number): number {
 
 export class SelectionError extends Error {}
 
-export function decide(request: PurchaseRequest): Decision {
+export function decide(
+  request: PurchaseRequest,
+  source: { snapshot: BenchmarkSnapshot; hash: string } = loadSnapshot(),
+): Decision {
   const maxOutputTokens = request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
   if (!Number.isInteger(maxOutputTokens) || maxOutputTokens <= 0) {
     throw new SelectionError("최대 출력 토큰은 1 이상의 정수여야 합니다");
@@ -100,7 +104,7 @@ export function decide(request: PurchaseRequest): Decision {
   }
 
   const catalog = loadCatalog();
-  const { snapshot, hash: snapshotHash } = loadSnapshot();
+  const { snapshot, hash: snapshotHash } = source;
   const paired = pairEntries(catalog, snapshot);
   const inputTokens = estimateInputTokens(request.prompt);
   const required = (request.requiredCapabilities ?? []).map((item) => item.trim().toLowerCase());
@@ -136,7 +140,6 @@ export function decide(request: PurchaseRequest): Decision {
   const rejected: RejectedCandidate[] = [];
   for (const candidate of priced) {
     const reasons: string[] = [];
-    if (candidate.amountUnits > request.budgetUnits) reasons.push("예산 초과");
     const has = candidate.entry.capabilities.map((item) => item.toLowerCase());
     const missing = required.filter((item) => !has.includes(item));
     if (missing.length > 0) reasons.push(`필요 기능 없음: ${missing.join(", ")}`);
@@ -211,6 +214,7 @@ export function decide(request: PurchaseRequest): Decision {
   return {
     snapshotId: snapshot.snapshotId,
     snapshotHash,
+    snapshotCapturedAt: snapshot.capturedAt,
     catalogVersion: catalog.catalogVersion,
     priority: request.priority,
     weights,

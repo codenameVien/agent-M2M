@@ -7,36 +7,48 @@
  * 문서를 JSON 문자열로 뭉쳐 넣지 않고 그대로 넣는 이유는, 나중에 "같은 수신자에게 반복 결제",
  * "시간대별 묶기" 같은 질의를 DB에서 바로 돌리기 위해서다. 구매 번호를 `_id` 로 쓰므로
  * 같은 번호를 두 번 저장하려 하면 DB가 거부한다.
+ *
+ * 구매 때 새로 받아 온 벤치마크 스냅샷은 snapshots 컬렉션에 해시를 `_id` 로 쌓는다.
+ * 결정 기록에는 해시만 남으므로, 그 해시로 "그때 본 숫자"를 다시 찾을 수 있다.
  */
 
 import { MongoClient, type Collection, type Db } from "mongodb";
 
-import type { PurchaseRecord } from "./types";
+import type { BenchmarkSnapshot, PurchaseRecord } from "./types";
 
 const URI = process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017";
 const DB_NAME = process.env.MONGODB_DB ?? "agent_m2m";
 const COLLECTION = "purchases";
+const SNAPSHOTS = "snapshots";
 
 /** `_id` 에 구매 번호가 들어간 저장 형태. */
 type PurchaseDocument = Omit<PurchaseRecord, "id"> & { _id: string };
 
-let client: MongoClient | null = null;
-let ready: Promise<Collection<PurchaseDocument>> | null = null;
+/** `_id` 에 스냅샷 해시가 들어간 저장 형태. */
+type SnapshotDocument = { _id: string; capturedAt: string; snapshot: BenchmarkSnapshot };
 
-async function connect(): Promise<Collection<PurchaseDocument>> {
+let client: MongoClient | null = null;
+let ready: Promise<Db> | null = null;
+
+async function connect(): Promise<Db> {
   const connected = new MongoClient(URI);
   await connected.connect();
   client = connected;
   const db: Db = connected.db(DB_NAME);
-  const collection = db.collection<PurchaseDocument>(COLLECTION);
   // 최근 순 조회가 기본이라 정렬 기준에 색인을 둔다.
-  await collection.createIndex({ createdAt: -1 });
-  return collection;
+  await db.collection<PurchaseDocument>(COLLECTION).createIndex({ createdAt: -1 });
+  await db.collection<SnapshotDocument>(SNAPSHOTS).createIndex({ capturedAt: -1 });
+  return db;
 }
 
-function purchases(): Promise<Collection<PurchaseDocument>> {
+async function purchases(): Promise<Collection<PurchaseDocument>> {
   ready ??= connect();
-  return ready;
+  return (await ready).collection<PurchaseDocument>(COLLECTION);
+}
+
+async function snapshots(): Promise<Collection<SnapshotDocument>> {
+  ready ??= connect();
+  return (await ready).collection<SnapshotDocument>(SNAPSHOTS);
 }
 
 function toRecord(document: PurchaseDocument): PurchaseRecord {
@@ -64,6 +76,21 @@ export async function getPurchase(id: string): Promise<PurchaseRecord | null> {
 /** 같은 구매 번호로 결제가 두 번 일어나지 않게 하는 확인. */
 export async function purchaseExists(id: string): Promise<boolean> {
   return (await (await purchases()).countDocuments({ _id: id }, { limit: 1 })) > 0;
+}
+
+/** 같은 해시가 이미 있으면 그대로 둔다(덧붙이기만). */
+export async function saveSnapshot(hash: string, snapshot: BenchmarkSnapshot): Promise<void> {
+  await (await snapshots()).updateOne(
+    { _id: hash },
+    { $setOnInsert: { capturedAt: snapshot.capturedAt, snapshot } },
+    { upsert: true },
+  );
+}
+
+/** 가장 최근에 받아 온 스냅샷. 아직 한 번도 받지 않았으면 null. */
+export async function latestSnapshot(): Promise<{ snapshot: BenchmarkSnapshot; hash: string } | null> {
+  const document = await (await snapshots()).findOne({}, { sort: { capturedAt: -1 } });
+  return document === null ? null : { snapshot: document.snapshot, hash: document._id };
 }
 
 /** 테스트가 쓰고 버리는 데이터베이스를 지울 때 쓴다. 이름이 테스트용일 때만 지운다. */

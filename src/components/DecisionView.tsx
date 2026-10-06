@@ -4,6 +4,7 @@
  */
 
 import { aegisText, toAegis } from "@/lib/format";
+import { PRIORITY_LABEL } from "@/lib/priority-label";
 import type { PurchaseRecord } from "@/lib/types";
 
 function fmt(value: number): string {
@@ -31,6 +32,15 @@ export function PurchaseSummary({ record }: { record: PurchaseRecord }) {
             <td>
               {aegisText(decision.winner.amountUnits)}
               <span className="muted"> (예산 {aegisText(decision.budgetUnits)})</span>
+            </td>
+          </tr>
+          <tr>
+            <th>우선순위</th>
+            <td>
+              {PRIORITY_LABEL[decision.priority]}
+              {decision.prioritySource === "local-llm" ? (
+                <span className="muted"> (요청 문장을 보고 {decision.priorityModel}이(가) 정함)</span>
+              ) : null}
             </td>
           </tr>
           <tr>

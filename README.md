@@ -1,12 +1,12 @@
 # agent-M2M
 
-AI 구매 에이전트가 벤치마크 표를 보고 모델 하나를 고른 뒤, AEGIS 토큰(Base Sepolia ERC-20)으로 값을 치르고, 판매창구가 결제를 확인한 뒤에만 결과를 돌려주는 데모입니다. 모델 선택에는 LLM이 없고 고정된 가중치 계산만 있어서, 왜 그 모델이 골라졌는지 후보별 점수와 탈락 사유를 그대로 열어볼 수 있습니다. 모델 출력은 Mock이며 실제 OpenAI·Anthropic·Google API를 부르지 않습니다.
+AI 구매 에이전트가 벤치마크 표를 보고 모델 하나를 고른 뒤, AEGIS 토큰(Base Sepolia ERC-20)으로 값을 치르고, 판매창구가 결제를 확인한 뒤에만 결과를 돌려주는 데모입니다. 모델 선택은 LLM 없이 고정된 가중치 계산으로만 해서, 왜 그 모델이 골라졌는지 후보별 점수와 탈락 사유를 그대로 열어볼 수 있습니다. 요청에 우선순위가 없을 때만 로컬 Qwen(Ollama)이 요청 문장을 읽고 우선순위 하나를 정합니다. 모델 출력은 Mock이며 실제 OpenAI·Anthropic·Google API를 부르지 않습니다.
 
 ## 흐름
 
 요청 → 선택 → 결제 → 확인 → 결과 → 기록
 
-1. **요청**: 요청 내용, 예산(units), 우선순위(기본·가격·속도·지능), 필요 기능.
+1. **요청**: 요청 내용, 예산(units), 우선순위(기본·가격·속도·지능), 필요 기능. 우선순위를 비우면 로컬 Qwen이 요청 문장에 적힌 선호(싸게·빨리·정확하게)를 보고 네 값 중 하나를 고르고, 선호가 없거나 서로 부딪히면 기본을 고릅니다. Qwen이 응답하지 않으면 결제 전에 멈춥니다(503).
 2. **선택**: 후보마다 금액 계산 → 필요 기능으로 하드 필터 → 살아남은 후보끼리 가격·시간·지능 점수 → 가중치 합산 → 고정 규칙으로 동점 처리. 예산은 선택에서 거르지 않고, 예산을 넘는 선택은 감사 단계에서 경고로 잡습니다.
 3. **결제**: 선택된 모델의 수신자 주소로 AEGIS `transfer` (기본은 mock).
 4. **확인**: 판매창구가 체인의 Transfer 기록에서 수신자·금액을 대조(live일 때).
@@ -49,12 +49,15 @@ npm run build
 | `AA_API_KEY` | (비움) | Artificial Analysis API 키. 벤치마크 자동 갱신·수동 캡처에 필요 |
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017` | MongoDB 접속 주소 |
 | `MONGODB_DB` | `agent_m2m` | 기록을 담을 데이터베이스 이름 |
+| `AEGIS_OLLAMA_URL` | `http://127.0.0.1:11434` | 우선순위 추론용 Ollama. 루프백 주소만 받음 |
+| `AEGIS_OLLAMA_MODEL` | `qwen3.5:4b` | 우선순위 추론 모델 |
+| `AEGIS_OLLAMA_TIMEOUT_SECONDS` | `30` | 추론 대기 시간(초, 최대 60) |
 
 > **경고** — 실제 토큰 전송은 기본적으로 일어나지 않습니다(mock). `AEGIS_PAYMENT_MODE=live` **와** `AEGIS_REAL_PAYMENT_APPROVED=yes` 두 변수가 모두 켜져 있고 개인키가 있을 때만 Base Sepolia에서 실제 `transfer`가 실행됩니다. 1건당 금액 상한은 없으므로 live로 켤 때는 예산과 잔액을 직접 확인하세요. 개인키는 절대 커밋하지 마세요.
 
 ## 기술 스택
 
-Next.js 15 (App Router) · React 19 · TypeScript · viem · MongoDB · vitest
+Next.js 15 (App Router) · React 19 · TypeScript · viem · MongoDB · Ollama(Qwen) · vitest
 
 ## 벤치마크 값 갱신
 

@@ -81,6 +81,12 @@ export interface PurchaseRequest {
   requiredCapabilities?: string[];
 }
 
+/** API 로 들어온 요청. 우선순위가 비어 있으면 로컬 Qwen 이 요청 문장을 보고 채운다. */
+export type PurchaseInput = Omit<PurchaseRequest, "priority"> & { priority?: Priority };
+
+/** 결정에 쓰인 우선순위가 어디서 왔는지. */
+export type PrioritySource = "request" | "local-llm";
+
 /** 필터에서 떨어진 후보와 그 이유. */
 export interface RejectedCandidate {
   key: string;
@@ -124,6 +130,10 @@ export interface Decision {
   snapshotRefreshError?: string;
   catalogVersion: string;
   priority: Priority;
+  /** 우선순위를 요청이 정했는지 LLM이 추론했는지. 이 칸이 생기기 전 기록에는 없다. */
+  prioritySource?: PrioritySource;
+  /** LLM이 추론했을 때 쓴 모델 이름. */
+  priorityModel?: string;
   weights: Weights;
   estimatedInputTokens: number;
   maxOutputTokens: number;

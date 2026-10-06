@@ -10,19 +10,26 @@ import { randomUUID } from "node:crypto";
 
 import { loadFreshSnapshot } from "./benchmark";
 import { pay, PaymentError, paymentConfig } from "./payment";
+import { inferPriority } from "./priority-llm";
 import { DeliveryError, mockResult, verifyPayment } from "./provider";
 import { decide, SelectionError } from "./select";
 import { purchaseExists, savePurchase } from "./store";
-import type { PurchaseRecord, PurchaseRequest } from "./types";
+import type { PurchaseInput, PurchaseRecord, PurchaseRequest } from "./types";
 
-export async function runPurchase(request: PurchaseRequest): Promise<PurchaseRecord> {
+export async function runPurchase(input: PurchaseInput): Promise<PurchaseRecord> {
   const id = randomUUID();
   if (await purchaseExists(id)) throw new Error("구매 번호가 중복되었습니다");
+
+  // 0) 우선순위가 없으면 로컬 Qwen 이 요청 문장을 보고 정한다. 실패하면 결제 전에 멈춘다.
+  const inferred = input.priority === undefined ? await inferPriority(input.prompt) : null;
+  const request: PurchaseRequest = { ...input, priority: inferred?.priority ?? input.priority! };
 
   // 1) 선택 — 여기서 실패하면 결제는 시작조차 하지 않는다.
   const source = await loadFreshSnapshot();
   const decision = decide(request, source);
   if (source.refreshError !== null) decision.snapshotRefreshError = source.refreshError;
+  decision.prioritySource = inferred === null ? "request" : "local-llm";
+  if (inferred !== null) decision.priorityModel = inferred.model;
   const createdAt = new Date().toISOString();
 
   try {

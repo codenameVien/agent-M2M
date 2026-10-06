@@ -2,14 +2,16 @@
  * POST /api/purchase — 요청 한 건을 받아 선택·결제·확인·결과·기록까지 돌린다.
  *
  * 입력은 여기서 모양만 검사한다(문자열인지, 정수인지, 네 우선순위 중 하나인지).
+ * 우선순위는 빼도 된다. 빼면 로컬 Qwen 이 요청 문장을 보고 정한다.
  * 예산 부족 같은 판단은 select.ts 가 하고, 그 결과는 400 이 아니라 기록으로 남는다.
  */
 
 import { NextResponse } from "next/server";
 
+import { PriorityInferenceError } from "@/lib/priority-llm";
 import { runPurchase } from "@/lib/purchase";
 import { SelectionError } from "@/lib/select";
-import { PRIORITIES, type Priority, type PurchaseRequest } from "@/lib/types";
+import { PRIORITIES, type Priority, type PurchaseInput } from "@/lib/types";
 
 // DB 를 읽고 쓰는 라우트는 정적으로 캐시되면 안 된다.
 export const dynamic = "force-dynamic";
@@ -18,8 +20,8 @@ function bad(message: string): NextResponse {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
-/** 요청 본문을 PurchaseRequest 로 바꾼다. 틀린 부분이 있으면 한국어 메시지를 돌려준다. */
-function parseBody(body: unknown): PurchaseRequest | string {
+/** 요청 본문을 PurchaseInput 으로 바꾼다. 틀린 부분이 있으면 한국어 메시지를 돌려준다. */
+function parseBody(body: unknown): PurchaseInput | string {
   if (typeof body !== "object" || body === null) return "요청 본문이 JSON 객체가 아닙니다";
   const input = body as Record<string, unknown>;
 
@@ -31,12 +33,15 @@ function parseBody(body: unknown): PurchaseRequest | string {
     return "budgetUnits 는 0 이상의 정수여야 합니다";
   }
 
-  const priority = input.priority;
-  if (typeof priority !== "string" || !PRIORITIES.includes(priority as Priority)) {
-    return `priority 는 ${PRIORITIES.join(", ")} 중 하나여야 합니다`;
-  }
+  const request: PurchaseInput = { prompt, budgetUnits };
 
-  const request: PurchaseRequest = { prompt, budgetUnits, priority: priority as Priority };
+  const priority = input.priority;
+  if (priority !== undefined) {
+    if (typeof priority !== "string" || !PRIORITIES.includes(priority as Priority)) {
+      return `priority 는 ${PRIORITIES.join(", ")} 중 하나이거나 비어 있어야 합니다`;
+    }
+    request.priority = priority as Priority;
+  }
 
   if (input.maxOutputTokens !== undefined) {
     const value = input.maxOutputTokens;
@@ -74,6 +79,10 @@ export async function POST(httpRequest: Request): Promise<NextResponse> {
   } catch (error) {
     // 선택 단계에서 막힌 경우(후보 없음 등)는 결제 전이므로 기록 없이 400 으로 알린다.
     if (error instanceof SelectionError) return bad(error.message);
+    // 우선순위 추론이 안 되면 결제 전이다. 기본값으로 메우지 않고 멈춘다.
+    if (error instanceof PriorityInferenceError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
     return NextResponse.json({ error: message }, { status: 500 });
   }
